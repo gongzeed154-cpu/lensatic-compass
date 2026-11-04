@@ -718,17 +718,22 @@ function drawDial(h){
   }
   if(showTarget)cardMark(S.target,S.night?'#ffffff':'#e08a00',true);
   if(S.locked!=null)cardMark(S.locked,S.night?'#9a9a9a':'#2f8f2f',false);
-  // E and W luminous plates (kept upright so they stay readable)
-  (S.night?[]:[[90,'E'],[270,'W']]).forEach(function(p){   // at night the plates are drawn by drawLume()
-    var ang=(p[0]-0)*RAD,px=Math.sin(ang)*rf*.36,py=-Math.cos(ang)*rf*.36;
-    ctx.save();ctx.translate(px,py);ctx.rotate(h*RAD);
-    ctx.fillStyle=S.night?'#d0d0d0':'#d9e79c';ctx.strokeStyle=S.night?'#808080':'#8a9455';ctx.lineWidth=DPR;
-    var w=rf*.2,hh=rf*.15;
-    ctx.beginPath();ctx.rect(-w/2,-hh/2,w,hh);ctx.fill();ctx.stroke();
-    ctx.fillStyle='#10140c';ctx.font='700 '+Math.round(rf*.13)+'px "Chakra Petch",sans-serif';
-    ctx.fillText(p[1],0,DPR);
-    ctx.restore();
-  });
+  // E and W plates turn with the card like the real ones, but the letters stay upright; at night drawLume() draws them
+  if(!S.night){
+    [[90,'E'],[270,'W']].forEach(function(p){
+      var ang=p[0]*RAD,w=rf*.2,hh=rf*.15;
+      ctx.save();ctx.translate(Math.sin(ang)*rf*.36,-Math.cos(ang)*rf*.36);
+      // no extra rotation: the plate is drawn in the card's frame, so it turns with the card
+      ctx.fillStyle='#d9e79c';ctx.strokeStyle='#8a9455';ctx.lineWidth=DPR;
+      ctx.beginPath();ctx.rect(-w/2,-hh/2,w,hh);ctx.fill();ctx.stroke();
+      ctx.restore();
+      ctx.save();ctx.translate(Math.sin(ang)*rf*.36,-Math.cos(ang)*rf*.36);
+      ctx.rotate(h*RAD);                     // cancel the card rotation so the letter is never tilted
+      ctx.fillStyle='#10140c';ctx.font='700 '+Math.round(rf*.13)+'px "Chakra Petch",sans-serif';
+      ctx.fillText(p[1],0,DPR);
+      ctx.restore();
+    });
+  }
   // north arrow and tail
   ctx.fillStyle=S.night?'#6a6a6a':'#8d948a';ctx.fillRect(-rf*.012,0,rf*.024,rf*.3);
   ctx.fillStyle=S.night?'#e4e4e4':'#111';ctx.beginPath();ctx.moveTo(0,-rf*.5);ctx.lineTo(rf*.085,-rf*.2);ctx.lineTo(-rf*.085,-rf*.2);ctx.closePath();ctx.fill();
@@ -783,11 +788,12 @@ function drawLume(h){
     ctx.lineCap='butt';
   }
   if(S.view!=='dial')return;
-  // bezel click count, big, so it can be read without any other light on the screen
-  ctx.shadowBlur=8;ctx.textAlign='left';ctx.textBaseline='top';
-  ctx.font='700 34px "Chakra Petch",sans-serif';ctx.fillText('คลิก '+S.bezel,vr.left+14,vr.top+8);
-  ctx.font='600 20px "Chakra Petch",sans-serif';ctx.fillText(S.bezel*3+'°',vr.left+14,vr.top+46);
-  ctx.shadowBlur=12;
+  if(!S.dark){   // click count in big lume digits (red night mode only; pitch dark shows nothing but the lume marks)
+    ctx.shadowBlur=8;ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.font='700 34px "Chakra Petch",sans-serif';ctx.fillText('คลิก '+S.bezel,vr.left+14,vr.top+8);
+    ctx.font='600 20px "Chakra Petch",sans-serif';ctx.fillText(S.bezel*3+'°',vr.left+14,vr.top+46);
+    ctx.shadowBlur=12;
+  }
   var rc=dial.getBoundingClientRect();if(!rc.width)return;
   var r=rc.width/2,rf=r*.87;
   ctx.translate(rc.left+r,rc.top+r);
@@ -797,13 +803,13 @@ function drawLume(h){
   ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.74);ctx.stroke();
   dot(0,-rf*.74,3.6);
   ctx.restore();
-  // card: north-arrow stripe and E/W plates turn with the card
+  // card: north-arrow stripe and E/W plates turn with the card; the letters are counter-rotated so they stay upright
   ctx.save();ctx.rotate(-h*RAD);
   ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-rf*.44);ctx.lineTo(0,-rf*.26);ctx.stroke();
   [[90,'E'],[270,'W']].forEach(function(p){
-    var ang=p[0]*RAD;
-    ctx.save();ctx.translate(Math.sin(ang)*rf*.36,-Math.cos(ang)*rf*.36);ctx.rotate(h*RAD);
-    ctx.fillRect(-rf*.1,-rf*.075,rf*.2,rf*.15);
+    var ang=p[0]*RAD,px=Math.sin(ang)*rf*.36,py=-Math.cos(ang)*rf*.36;
+    ctx.fillRect(px-rf*.1,py-rf*.075,rf*.2,rf*.15);
+    ctx.save();ctx.translate(px,py);ctx.rotate(h*RAD);
     ctx.shadowBlur=0;ctx.fillStyle='#06200a';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.font='700 '+Math.round(rf*.13)+'px "Chakra Petch",sans-serif';ctx.fillText(p[1],0,1);
     ctx.restore();
