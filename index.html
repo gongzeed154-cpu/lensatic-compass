@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0b100c">
+<title>เข็มทิศเลนเซติก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Two views of one compass:
+   sight view  = phone upright: camera behind, front-sight lid with hairline, magnifier lens reading the card
+   dial view   = phone flat: top-down card (red degrees, black mils) under the lid */
+:root{
+  --ink:#0b100c;
+  --panel:rgba(11,16,12,.86);
+  --line:rgba(214,232,196,.20);
+  --lum:#b8f26a;
+  --wire:#ff4d2e;
+  --amber:#ffb524;
+  --txt:#eef4e6;
+  --mute:#9fb095;
+  --display:'Chakra Petch','Sarabun',system-ui,sans-serif;
+  --body:'Sarabun','Chakra Petch',system-ui,sans-serif;
+  --vh:100vh;
+}
+@supports (height:100dvh){:root{--vh:100dvh}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--txt);font-family:var(--body);overflow:hidden;overscroll-behavior:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--lum);outline-offset:2px}
+
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto auto 1fr auto;
+  padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+#cam{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  background:radial-gradient(120% 80% at 50% 30%,#1d2a1d 0%,#0b100c 70%)}
+#bg{position:absolute;inset:0;background:radial-gradient(110% 70% at 50% 35%,#1b271b 0%,#0b100c 75%)}
+#app>header,#app>#guide,#app>#view,#app>#panel{position:relative;z-index:2}
+
+header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 6px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border-radius:20px;
+  background:var(--panel);border:1px solid var(--line);font-size:13px;color:var(--mute);min-width:0}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--mute);flex:none}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.ok i{background:var(--lum)} .chip.warn{color:var(--amber)} .chip.warn i{background:var(--amber)}
+#status{flex:1 1 auto}
+#btnView{flex:none;color:var(--txt);font-weight:700}
+.iconbtn{flex:none;width:44px;height:44px;border-radius:22px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center}
+.iconbtn svg{width:22px;height:22px;stroke:var(--txt);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+#guide{margin:0 auto;min-height:50px;max-width:94%;padding:6px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
+  display:grid;align-content:center;font-family:var(--display);font-weight:600;font-size:18px;text-align:center;line-height:1.25}
+#guide small{font-family:var(--body);font-weight:400;font-size:13px;color:var(--mute)}
+#guide.hit{color:var(--lum);border-color:var(--lum)}
+#guide.miss{color:var(--amber);border-color:var(--amber)}
+
+#view{display:grid;place-items:center;min-height:0;overflow:hidden}
+.stack{position:relative}
+.lid svg{display:block;width:100%;height:auto}
+.hair{position:absolute;width:2px;background:var(--wire);box-shadow:0 0 6px rgba(255,77,46,.75);left:calc(50% - 1px)}
+canvas{display:block}
+
+/* sight view */
+#sightStack{--w:min(84vw,300px,calc((var(--vh) - 340px)/1.52));width:var(--w);height:calc(var(--w)*1.52)}
+#sightStack .lid{position:absolute;left:0;top:0;width:100%}
+#sightStack .hair{top:calc(var(--w)*.05);height:calc(var(--w)*.9)}
+#lens{position:absolute;left:19%;top:calc(var(--w)*.92);width:62%;aspect-ratio:1/1;height:auto}
+/* dial view */
+#dialStack{--wd:min(92vw,380px,calc((var(--vh) - 340px)/1.57));width:var(--wd);height:calc(var(--wd)*1.57)}
+#dialStack .lid{position:absolute;left:20%;top:0;width:60%}
+#dialStack .hair{top:calc(var(--wd)*.03);height:calc(var(--wd)*.57)}
+#dial{position:absolute;left:0;top:calc(var(--wd)*.57);width:100%;aspect-ratio:1/1;height:auto}
+
+#panel{background:var(--panel);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-left,0px)) calc(env(safe-area-inset-bottom,0px) + 10px) max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:10px}
+.readout{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0}
+.tag{font-size:12px;letter-spacing:.08em;color:var(--mute)}
+.tag b{color:var(--amber);font-weight:700}
+#big{font-family:var(--display);font-weight:700;font-size:48px;line-height:1;font-variant-numeric:tabular-nums;color:var(--lum)}
+#big.locked{color:var(--amber)}
+.side{text-align:right;min-width:0;display:grid;gap:2px}
+#alt{font-family:var(--display);font-weight:500;font-size:22px;font-variant-numeric:tabular-nums}
+#dirname{font-size:13px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btns{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
+.btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:rgba(238,244,230,.06);font-weight:700;font-size:15px;padding:0 8px}
+.btn.primary{background:var(--lum);color:#10200a;border-color:var(--lum)}
+.btn.on{background:var(--amber);color:#2a1a00;border-color:var(--amber)}
+.btn:disabled{opacity:.4}
+
+#start{position:fixed;inset:0;z-index:20;background:var(--ink);display:grid;align-content:center;gap:18px;overflow:auto;
+  padding:max(24px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-left,0px)) max(24px,env(safe-area-inset-bottom,0px))}
+#start h1{font-family:var(--display);font-weight:700;font-size:34px;margin:0;color:var(--lum);line-height:1.1}
+#start p{margin:0;color:var(--mute);max-width:34em}
+#start ol{margin:0;padding-left:1.2em;display:grid;gap:8px;max-width:34em}
+#start .note{font-size:14px;border-left:3px solid var(--amber);padding-left:12px;max-width:34em}
+#start .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#startErr{color:var(--amber);font-size:14px;min-height:1.2em;max-width:34em}
+.link{background:none;border:0;color:var(--mute);text-decoration:underline;min-height:44px}
+
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#121a13;border-top:1px solid var(--line);
+  border-radius:18px 18px 0 0;padding:16px max(16px,env(safe-area-inset-left,0px)) calc(env(safe-area-inset-bottom,0px) + 16px);
+  display:grid;gap:14px;max-height:86%;overflow:auto}
+.sheet h2{margin:0;font-family:var(--display);font-size:20px}
+.field{display:grid;gap:6px}
+.field label{font-size:14px;color:var(--mute)}
+.field input[type=number]{min-height:48px;border-radius:10px;border:1px solid var(--line);background:#0b100c;padding:0 12px;font-size:18px;width:100%}
+.field small{color:var(--mute);font-size:12px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:#0b100c;font-weight:700}
+.seg button[aria-pressed=true]{background:var(--lum);color:#10200a;border-color:var(--lum)}
+.sheet .row{display:flex;gap:8px}
+.sheet .row .btn{flex:1}
+#demoBar{position:absolute;left:12px;right:12px;bottom:calc(158px + env(safe-area-inset-bottom,0px));z-index:5;display:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;color:var(--mute)}
+#demoBar input{width:100%}
+@media (max-width:360px){#big{font-size:40px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <video id="cam" playsinline muted autoplay></video>
+  <div id="bg" hidden></div>
+
+  <header>
+    <div class="chip" id="status"><i></i><span id="statusTxt">รอเริ่มใช้งาน</span></div>
+    <button class="chip" id="btnView" aria-label="สลับมุมมอง"><span id="viewTxt">อัตโนมัติ · เล็ง</span></button>
+    <button class="iconbtn" id="btnSet" aria-label="ตั้งค่า">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <div id="guide" style="visibility:hidden"></div>
+
+  <div id="view">
+    <!-- sight view: lid with front-sight hairline, magnifier lens below -->
+    <div class="stack" id="sightStack">
+      <div class="lid" id="lidS"></div>
+      <div class="hair" aria-hidden="true"></div>
+      <canvas id="lens" aria-label="แว่นขยายอ่านองศาและมิล"></canvas>
+    </div>
+    <!-- dial view: lid above, card seen from the top -->
+    <div class="stack" id="dialStack" hidden>
+      <div class="lid" id="lidD"></div>
+      <div class="hair" aria-hidden="true"></div>
+      <canvas id="dial" aria-label="หน้าปัดเข็มทิศ"></canvas>
+    </div>
+  </div>
+
+  <section id="panel">
+    <div class="readout">
+      <div>
+        <div class="tag" id="tag">ทิศที่เล็ง</div>
+        <div id="big">---</div>
+      </div>
+      <div class="side">
+        <div id="alt">---</div>
+        <div id="dirname">—</div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="btnLock">ล็อกทิศ</button>
+      <button class="btn" id="btnTarget">เป้าหมาย</button>
+      <button class="btn" id="btnPractice">ฝึก</button>
+    </div>
+  </section>
+
+  <div id="demoBar">
+    <label for="demoRange">โหมดจำลอง (ไม่พบเซ็นเซอร์): เลื่อนเพื่อหมุนทิศ <b id="demoVal">0</b>°</label>
+    <input id="demoRange" type="range" min="0" max="359" value="0">
+  </div>
+</div>
+
+<div id="start">
+  <h1>เข็มทิศเลนเซติก</h1>
+  <p>จำลองการใช้เข็มทิศเลนเซติกบนมือถือ อ่านทิศเป็นองศา (เลขแดง) และมิล (เลขดำ)</p>
+  <ol>
+    <li><b>ยกมือถือตั้งฉาก</b> หันกล้องหลังไปที่หมาย เหมือนเล็งผ่านช่องเล็งหลัง ให้เส้นเล็งหน้ากลางจอทับที่หมาย แล้วอ่านค่าจากแว่นขยายด้านล่าง</li>
+    <li><b>วางมือถือราบ</b> จะเปลี่ยนเป็นหน้าปัดมองจากด้านบน เหมือนดูเข็มทิศที่ถือในมือ</li>
+    <li>กด "ล็อกทิศ" เพื่อจดค่าที่เล็งไว้</li>
+  </ol>
+  <div class="note">ถอดเคสที่มีแม่เหล็ก อยู่ห่างโลหะ สายไฟ รถยนต์ ถ้าค่าเพี้ยน ให้โบกมือถือเป็นเลข 8 ในอากาศสองสามครั้งเพื่อปรับเทียบ</div>
+  <div class="row">
+    <button class="btn primary" id="btnStart" style="min-width:180px">เริ่มใช้งาน</button>
+    <button class="link" id="btnDemo">ลองโหมดจำลอง</button>
+  </div>
+  <div id="startErr" role="status"></div>
+</div>
+
+<div class="sheet" id="sheetTarget" hidden>
+  <h2>ตั้งทิศเป้าหมาย</h2>
+  <div class="field">
+    <label for="tgtInput" id="tgtLabel">ทิศเป้าหมาย (องศา 0-359)</label>
+    <input id="tgtInput" type="number" inputmode="decimal" step="1" min="0">
+    <small>ตั้งแล้วหน้าจอจะบอกว่าต้องหันซ้ายหรือขวาอีกกี่องศา และมีเครื่องหมายสีส้มบนสเกล</small>
+  </div>
+  <div class="row">
+    <button class="btn" id="tgtClear">ล้างเป้าหมาย</button>
+    <button class="btn primary" id="tgtOk">ตกลง</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetSet" hidden>
+  <h2>ตั้งค่า</h2>
+  <div class="field">
+    <label>หน่วยที่แสดงเป็นหลัก</label>
+    <div class="seg">
+      <button id="uDeg" aria-pressed="true">องศา (360)</button>
+      <button id="uMil" aria-pressed="false">มิล (6400)</button>
+    </div>
+  </div>
+  <div class="field">
+    <label for="declInput">ค่าเบี่ยงเบน/ชดเชย (องศา)</label>
+    <input id="declInput" type="number" inputmode="decimal" step="0.1" value="0">
+    <small>ทิศที่แสดง = ทิศจากเซ็นเซอร์ + ค่านี้ ในประเทศไทยค่าเบี่ยงเบนแม่เหล็กน้อยมาก ตั้ง 0 ได้ ใช้ช่องนี้แก้ค่าคลาดคงที่ถ้าเทียบกับเข็มทิศจริงแล้วเพี้ยนเท่ากันทุกทิศ</small>
+  </div>
+  <div class="field">
+    <label for="smoothInput">ความนิ่งของตัวเลข <b id="smoothVal">5</b></label>
+    <input id="smoothInput" type="range" min="1" max="10" value="5">
+    <small>ค่าสูงนิ่งกว่าแต่ตอบสนองช้ากว่า</small>
+  </div>
+  <button class="btn primary" id="setOk">เสร็จ</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(id){return document.getElementById(id)};
+var mod = function(d){return ((d%360)+360)%360};
+var pad = function(n,w){n=String(n);while(n.length<w)n='0'+n;return n};
+var RAD = Math.PI/180, MILS = 6400;
+var toMil = function(d){return d*MILS/360};
+var toDeg = function(m){return m*360/MILS};
+var sdiff = function(a,b){var d=mod(a-b);return d>180?d-360:d};
+
+/* circular smoother */
+function Sm(){this.sx=0;this.sy=0;this.has=false}
+Sm.prototype.push=function(h,k){
+  var x=Math.sin(h*RAD),y=Math.cos(h*RAD);
+  if(!this.has){this.sx=x;this.sy=y;this.has=true;}
+  else{this.sx+=(x-this.sx)*k;this.sy+=(y-this.sy)*k;}
+};
+Sm.prototype.set=function(h){this.sx=Math.sin(h*RAD);this.sy=Math.cos(h*RAD);this.has=true;};
+Sm.prototype.get=function(){return this.has?mod(Math.atan2(this.sx,this.sy)/RAD):null};
+
+var S = {
+  unit:'deg', decl:0, smooth:5,
+  back:new Sm(), top:new Sm(),
+  zUp:null, elev:null, absolute:true, accuracy:null, gotAbs:false, lastEvt:0, demo:false,
+  off:0, hasOff:false,
+  mode:'auto', view:'sight',
+  locked:null, target:null,
+  practice:{on:false,target:null,result:null,pass:0,total:0},
+  started:false
+};
+try{
+  var saved=JSON.parse(localStorage.getItem('lensatic')||'{}');
+  if(saved.unit)S.unit=saved.unit;
+  if(typeof saved.decl==='number')S.decl=saved.decl;
+  if(typeof saved.smooth==='number')S.smooth=saved.smooth;
+}catch(e){}
+function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth}))}catch(e){}}
+
+/* ---------- heading maths (alpha measured from north) ---------- */
+// where the BACK of the phone points (phone upright)
+function backHeading(a,b,g){
+  a*=RAD;b*=RAD;g*=RAD;
+  var cA=Math.cos(a),sA=Math.sin(a),cB=Math.cos(b),sB=Math.sin(b),cG=Math.cos(g),sG=Math.sin(g);
+  return mod(Math.atan2(-cA*sG-sA*sB*cG,-sA*sG+cA*sB*cG)/RAD);
+}
+// where the TOP edge of the phone points (phone flat)
+function topHeading(a,b){
+  a*=RAD;b*=RAD;
+  return mod(Math.atan2(-Math.sin(a)*Math.cos(b),Math.cos(a)*Math.cos(b))/RAD);
+}
+function elevFromEuler(b,g){
+  var v=-Math.cos(b*RAD)*Math.cos(g*RAD);
+  return Math.asin(Math.max(-1,Math.min(1,v)))/RAD;
+}
+window.__lensatic={backHeading:backHeading,topHeading:topHeading,elevFromEuler:elevFromEuler,sdiff:sdiff};
+
+function k(){return 1/(1+S.smooth*1.6)}
+function liveHeading(){
+  var sm=S.view==='dial'?S.top:S.back;
+  var h=sm.get();
+  return h==null?null:mod(h+S.decl);
+}
+
+/* ---------- sensors ---------- */
+function onOrient(e){
+  if(S.demo)return;
+  if(e.type==='deviceorientationabsolute'){S.gotAbs=true;}
+  else if(S.gotAbs){return;}
+  var a=e.alpha,b=e.beta,g=e.gamma;
+  var wk=(typeof e.webkitCompassHeading==='number'&&!isNaN(e.webkitCompassHeading))?e.webkitCompassHeading:null;
+  if(b!=null&&g!=null){
+    S.zUp=Math.cos(b*RAD)*Math.cos(g*RAD);
+    S.elev=elevFromEuler(b,g);
+  }
+  if(a!=null&&b!=null&&g!=null){
+    var back=backHeading(a,b,g), top=topHeading(a,b);
+    if(wk!=null){ // iPhone: alpha is relative, learn its offset to north while the phone is flat
+      S.absolute=true;
+      S.accuracy=(typeof e.webkitCompassAccuracy==='number'&&e.webkitCompassAccuracy>=0)?e.webkitCompassAccuracy:null;
+      if(S.zUp>0.7){
+        var o=sdiff(wk,top);
+        if(!S.hasOff){S.off=o;S.hasOff=true;}else{S.off=mod(S.off+sdiff(o,S.off)*0.2);}
+      }
+      if(S.hasOff){back=mod(back+S.off);top=mod(top+S.off);}
+      else{back=wk;top=wk;}
+    }else{
+      S.absolute=(e.type==='deviceorientationabsolute')||e.absolute===true;
+    }
+    S.back.push(back,k());S.top.push(top,k());S.lastEvt=performance.now();
+  }else if(wk!=null){
+    S.back.push(wk,k());S.top.push(wk,k());S.lastEvt=performance.now();
+  }
+}
+function startSensors(){
+  var p=Promise.resolve('granted');
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){
+      p=DeviceOrientationEvent.requestPermission();
+    }
+  }catch(e){}
+  return p.then(function(res){
+    if(res!=='granted')throw new Error('sensor-denied');
+    window.addEventListener('deviceorientationabsolute',onOrient,true);
+    window.addEventListener('deviceorientation',onOrient,true);
+  });
+}
+function startCamera(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject(new Error('no-media'));
+  return navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})
+    .then(function(stream){var v=$('cam');v.srcObject=stream;return v.play().catch(function(){});});
+}
+function wake(){try{if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(function(){})}catch(e){}}
+
+function begin(){
+  var err=$('startErr');err.textContent='';
+  var sensorP=startSensors();   // inside the tap, before any await (iPhone needs this)
+  var camP=startCamera();
+  Promise.allSettled([sensorP,camP]).then(function(r){
+    var msgs=[];
+    if(r[0].status==='rejected'){
+      msgs.push(r[0].reason&&r[0].reason.message==='sensor-denied'
+        ?'ไม่ได้รับอนุญาตใช้เซ็นเซอร์ทิศ ให้ตั้งค่าเบราว์เซอร์อนุญาต "การเคลื่อนไหวและการวางแนว" แล้วโหลดหน้าใหม่'
+        :'เบราว์เซอร์นี้ไม่รองรับเซ็นเซอร์ทิศ');
+    }
+    if(r[1].status==='rejected'){
+      var m=r[1].reason&&r[1].reason.message;
+      msgs.push(m==='no-media'
+        ?'เปิดกล้องไม่ได้ ต้องเปิดหน้านี้ผ่านลิงก์ https:// (ไม่ใช่ไฟล์ในเครื่อง)'
+        :'เปิดกล้องไม่ได้ ตรวจสอบว่าอนุญาตการใช้กล้องแล้ว');
+    }
+    if(r[0].status==='rejected'&&r[1].status==='rejected'){err.textContent=msgs.join(' / ');return;}
+    S.started=true;$('start').hidden=true;wake();applyView();
+    if(msgs.length)setStatus('warn',msgs[0]);
+    setTimeout(function(){if(!S.back.has&&!S.demo)enableDemo('ไม่พบข้อมูลเซ็นเซอร์');},2500);
+  });
+}
+function enableDemo(why){S.demo=true;$('demoBar').style.display='block';setStatus('warn',(why?why+' · ':'')+'ใช้โหมดจำลอง');applyDemo();}
+function applyDemo(){var v=+$('demoRange').value;$('demoVal').textContent=v;S.back.set(v);S.top.set(v);}
+$('demoRange').addEventListener('input',applyDemo);
+$('btnStart').addEventListener('click',begin);
+$('btnDemo').addEventListener('click',function(){$('start').hidden=true;S.started=true;enableDemo('');applyView();});
+
+/* ---------- views ---------- */
+function pickView(){
+  var v=S.view;
+  if(S.mode==='sight')return 'sight';
+  if(S.mode==='dial')return 'dial';
+  if(S.zUp!=null){if(S.zUp<0.55)v='sight';else if(S.zUp>0.75)v='dial';}
+  return v;
+}
+function renderViewBtn(){
+  var eff=S.view==='sight'?'เล็ง':'หน้าปัด';
+  $('viewTxt').textContent=S.mode==='auto'?'อัตโนมัติ · '+eff:eff;
+}
+function applyView(){
+  $('sightStack').hidden=S.view!=='sight';
+  $('dialStack').hidden=S.view!=='dial';
+  $('cam').style.visibility=S.view==='sight'?'visible':'hidden';
+  $('bg').hidden=S.view==='sight';
+  renderViewBtn();
+}
+function updateView(){var v=pickView();if(v!==S.view){S.view=v;applyView();}}
+$('btnView').addEventListener('click',function(){
+  S.mode=S.mode==='auto'?'sight':(S.mode==='sight'?'dial':'auto');
+  updateView();renderViewBtn();
+});
+
+/* ---------- status ---------- */
+var lastStatus='';
+function setStatus(kind,txt){
+  var key=kind+'|'+txt;if(key===lastStatus)return;lastStatus=key;
+  $('status').className='chip '+(kind||'');$('statusTxt').textContent=txt;
+}
+function refreshStatus(now){
+  if(!S.started)return;
+  if(S.demo)return;
+  if(!S.back.has){setStatus('','รอข้อมูลเซ็นเซอร์…');return;}
+  if(now-S.lastEvt>2000){setStatus('warn','เซ็นเซอร์หยุดส่งค่า');return;}
+  if(S.view==='sight'&&S.elev!=null&&Math.abs(S.elev)>55){setStatus('warn','ยกมือถือให้ตั้งตรง กล้องมองตรงไปข้างหน้า');return;}
+  if(!S.absolute){setStatus('warn','ค่าไม่อิงทิศเหนือจริง ลองเปิดเบราว์เซอร์อื่นหรือปรับเทียบเข็มทิศ');return;}
+  if(S.accuracy!=null&&S.accuracy>25){setStatus('warn','ค่าคลาด ±'+Math.round(S.accuracy)+'° โบกมือถือเป็นเลข 8');return;}
+  setStatus('ok','เซ็นเซอร์พร้อม');
+}
+
+/* ---------- formatting ---------- */
+var NAMES=['เหนือ','ตะวันออกเฉียงเหนือ','ตะวันออก','ตะวันออกเฉียงใต้','ใต้','ตะวันตกเฉียงใต้','ตะวันตก','ตะวันตกเฉียงเหนือ'];
+function dirName(h){return NAMES[Math.round(h/45)%8]}
+function fmtDeg(h){return pad(Math.round(mod(h))%360,3)+'°'}
+function fmtMil(h){return pad(Math.round(toMil(mod(h)))%MILS,4)}
+function fmtPrimary(h){return S.unit==='deg'?fmtDeg(h):fmtMil(h)+' มิล'}
+function fmtAmount(deg){return S.unit==='deg'?(Math.round(Math.abs(deg))+'°'):(Math.round(toMil(Math.abs(deg)))+' มิล')}
+
+/* ---------- lid (front sight) ---------- */
+function lidSVG(uid){
+  var ticks='';
+  for(var i=0;i<14;i++){var y=30+i*4.6;ticks+='<line x1="1.5" x2="'+(i%2?4.2:6)+'" y1="'+y+'" y2="'+y+'" stroke="#1d2417" stroke-width=".5"/>';}
+  return '<svg viewBox="0 0 100 108" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">'+
+  '<defs><mask id="mk'+uid+'" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="108">'+
+  '<rect width="100" height="108" fill="#fff"/><rect x="44.4" y="30" width="11.2" height="50" rx="5.6" fill="#000"/></mask></defs>'+
+  '<g mask="url(#mk'+uid+')"><g opacity=".86">'+
+  '<rect x="0" y="26" width="9" height="62" rx="1" fill="#46552f" stroke="#1d2417" stroke-width=".8"/>'+
+  '<circle cx="50" cy="58" r="42" fill="#55663f" stroke="#1d2417" stroke-width="1"/>'+
+  '<rect x="33" y="0" width="34" height="20" rx="3" fill="#55663f" stroke="#1d2417" stroke-width="1"/>'+
+  '<rect x="33.6" y="12" width="32.8" height="12" fill="#55663f"/>'+
+  '<circle cx="50" cy="58" r="37" fill="none" stroke="rgba(0,0,0,.28)" stroke-width=".8"/>'+
+  ticks+
+  '<text x="7" y="86" transform="rotate(-90 7 86)" font-size="4" fill="#1d2417" font-family="Chakra Petch,sans-serif" font-weight="700">METERS</text>'+
+  '<circle cx="50" cy="93" r="2.1" fill="#3c4a2a" stroke="#1d2417" stroke-width=".5"/>'+
+  '</g></g>'+
+  '<rect x="44.4" y="30" width="11.2" height="50" rx="5.6" fill="none" stroke="rgba(0,0,0,.65)" stroke-width="1"/>'+
+  '<rect x="43.4" y="29" width="13.2" height="52" rx="6.6" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".7"/>'+
+  '</svg>';
+}
+$('lidS').innerHTML=lidSVG('s');
+$('lidD').innerHTML=lidSVG('d');
+
+/* ---------- canvases ---------- */
+var DPR=Math.min(window.devicePixelRatio||1,3);
+var lens=$('lens'),lctx=lens.getContext('2d');
+var dial=$('dial'),dctx=dial.getContext('2d');
+function fit(c){
+  var w=c.clientWidth;if(!w)return false;
+  var px=Math.round(w*DPR);
+  if(c.width!==px||c.height!==px){c.width=px;c.height=px;}
+  return true;
+}
+var RED='#c1272d',BLK='#121512';
+
+function lensMarker(ctx,cx,cy,rg,ppd,h,angle,color,shape){
+  var dx=sdiff(angle,h)*ppd;
+  if(Math.abs(dx)<rg*0.86){
+    var x=cx+dx;
+    ctx.globalAlpha=.7;ctx.strokeStyle=color;ctx.lineWidth=1.5*DPR;ctx.beginPath();ctx.moveTo(x,cy-rg*.78);ctx.lineTo(x,cy+rg*.78);ctx.stroke();ctx.globalAlpha=1;
+    ctx.fillStyle=color;ctx.beginPath();
+    var y0=cy-rg*.86,s=7*DPR;
+    if(shape==='tri'){ctx.moveTo(x-s,y0);ctx.lineTo(x+s,y0);ctx.lineTo(x,y0+s*1.5);}
+    else{ctx.moveTo(x,y0);ctx.lineTo(x+s*.8,y0+s*.8);ctx.lineTo(x,y0+s*1.6);ctx.lineTo(x-s*.8,y0+s*.8);}
+    ctx.closePath();ctx.fill();
+  }else{
+    var side=dx>0?1:-1,x2=cx+side*rg*.9;
+    ctx.fillStyle=color;ctx.beginPath();
+    ctx.moveTo(x2+side*6*DPR,cy);ctx.lineTo(x2-side*3*DPR,cy-8*DPR);ctx.lineTo(x2-side*3*DPR,cy+8*DPR);ctx.closePath();ctx.fill();
+  }
+}
+
+function drawLens(h){
+  if(!fit(lens))return;
+  var W=lens.width,ctx=lctx,r=W/2,cx=r,cy=r,rg=r*0.84;
+  ctx.clearRect(0,0,W,W);
+  // rubber eyepiece
+  var rub=ctx.createRadialGradient(cx,cy,rg,cx,cy,r);
+  rub.addColorStop(0,'#1a1d1a');rub.addColorStop(.55,'#070807');rub.addColorStop(1,'#232723');
+  ctx.beginPath();ctx.arc(cx,cy,r-DPR,0,7);ctx.fillStyle=rub;ctx.fill();
+  ctx.save();
+  ctx.beginPath();ctx.arc(cx,cy,rg,0,7);ctx.clip();
+  // pale card seen through the glass
+  var gl=ctx.createLinearGradient(0,cy-rg,0,cy+rg);
+  gl.addColorStop(0,'#dfe6d8');gl.addColorStop(.5,'#f2f5ee');gl.addColorStop(1,'#d5dccd');
+  ctx.fillStyle=gl;ctx.fillRect(cx-rg,cy-rg,rg*2,rg*2);
+
+  // degrees (red) – magnified window of 22 degrees
+  var ppd=(rg*2)/22, yD=cy-rg*.06;
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  var d0=Math.floor(h-11.5),d1=Math.ceil(h+11.5);
+  for(var d=d0;d<=d1;d++){
+    var x=cx+(d-h)*ppd,dd=mod(d),five=dd%5===0;
+    ctx.strokeStyle=RED;ctx.lineWidth=(five?1.8:1)*DPR;
+    ctx.beginPath();ctx.moveTo(x,yD);ctx.lineTo(x,yD-(five?.2:.1)*rg);ctx.stroke();
+    if(dd%5===0){
+      ctx.fillStyle=RED;ctx.font='700 '+Math.round(rg*.15)+'px "Chakra Petch",sans-serif';
+      ctx.fillText(String(dd),x,yD-.23*rg);
+    }
+  }
+  ctx.strokeStyle=RED;ctx.lineWidth=DPR;ctx.beginPath();ctx.moveTo(cx-rg,yD);ctx.lineTo(cx+rg,yD);ctx.stroke();
+
+  // mils (black) – same pixel width
+  var m=toMil(h),ppm=(rg*2)/392,yM=cy+rg*.1;
+  ctx.textBaseline='top';
+  var m0=Math.floor((m-200)/10)*10,m1=m+200;
+  for(var mm=m0;mm<=m1;mm+=10){
+    var xm=cx+(mm-m)*ppm,mv=((mm%MILS)+MILS)%MILS,hund=mv%100===0,fifty=mv%50===0;
+    ctx.strokeStyle=BLK;ctx.lineWidth=(hund?1.8:1)*DPR;
+    ctx.beginPath();ctx.moveTo(xm,yM);ctx.lineTo(xm,yM+(hund?.2:(fifty?.14:.08))*rg);ctx.stroke();
+    if(hund){
+      ctx.fillStyle=BLK;ctx.font='700 '+Math.round(rg*.15)+'px "Chakra Petch",sans-serif';
+      ctx.fillText(String(mv/100),xm,yM+.23*rg);
+    }
+  }
+  ctx.strokeStyle=BLK;ctx.lineWidth=DPR;ctx.beginPath();ctx.moveTo(cx-rg,yM);ctx.lineTo(cx+rg,yM);ctx.stroke();
+  // row tags
+  ctx.font='700 '+Math.round(rg*.11)+'px "Sarabun",sans-serif';
+  ctx.textAlign='left';ctx.textBaseline='middle';
+  ctx.fillStyle=RED;ctx.fillText('องศา',cx-rg*.7,yD-rg*.5);
+  ctx.fillStyle=BLK;ctx.fillText('มิล',cx-rg*.62,yM+rg*.55);
+
+  // markers
+  var showTarget=S.target!=null&&!(S.practice.on&&S.practice.result==null);
+  if(showTarget)lensMarker(ctx,cx,cy,rg,ppd,h,S.target,'#e08a00','tri');
+  if(S.locked!=null)lensMarker(ctx,cx,cy,rg,ppd,h,S.locked,'#2f8f2f','dia');
+
+  // glass shading
+  var sh=ctx.createRadialGradient(cx,cy,rg*.55,cx,cy,rg);
+  sh.addColorStop(0,'rgba(0,0,0,0)');sh.addColorStop(1,'rgba(0,0,0,.34)');
+  ctx.fillStyle=sh;ctx.fillRect(cx-rg,cy-rg,rg*2,rg*2);
+  var hl=ctx.createLinearGradient(cx-rg,cy-rg,cx+rg*.2,cy);
+  hl.addColorStop(0,'rgba(255,255,255,.32)');hl.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=hl;ctx.beginPath();ctx.ellipse(cx-rg*.2,cy-rg*.55,rg*.8,rg*.3,-.35,0,7);ctx.fill();
+  ctx.restore();
+  // hairline through the whole lens
+  ctx.strokeStyle='#ff4d2e';ctx.lineWidth=2*DPR;ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,cy+rg*.95);ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,rg,0,7);ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=2*DPR;ctx.stroke();
+}
+
+function drawDial(h){
+  if(!fit(dial))return;
+  var W=dial.width,ctx=dctx,r=W/2,i,a;
+  ctx.clearRect(0,0,W,W);
+  ctx.save();ctx.translate(r,r);
+  // bezel
+  ctx.beginPath();ctx.arc(0,0,r-DPR,0,7);ctx.fillStyle='#0a0c0a';ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=DPR;
+  for(a=0;a<360;a+=3){ctx.save();ctx.rotate(a*RAD);ctx.beginPath();ctx.moveTo(0,-r+DPR);ctx.lineTo(0,-r*.965);ctx.stroke();ctx.restore();}
+  var rf=r*.93;
+  ctx.beginPath();ctx.arc(0,0,rf,0,7);
+  var fg=ctx.createRadialGradient(0,-rf*.35,rf*.1,0,0,rf);fg.addColorStop(0,'#f3f6ee');fg.addColorStop(1,'#d6dcce');
+  ctx.fillStyle=fg;ctx.fill();
+
+  ctx.save();ctx.rotate(-h*RAD);
+  // mils ring (black): tick every 20 mils, number every 200 mils
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(i=0;i<320;i++){
+    a=i*1.125;var maj=i%5===0,len=maj?.075:.04;
+    ctx.save();ctx.rotate(a*RAD);
+    ctx.strokeStyle=BLK;ctx.lineWidth=(maj?1.5:1)*DPR;
+    ctx.beginPath();ctx.moveTo(0,-rf*.97);ctx.lineTo(0,-rf*(.97-len));ctx.stroke();
+    if(i%10===0){
+      ctx.fillStyle=BLK;ctx.font='700 '+Math.round(rf*.075)+'px "Chakra Petch",sans-serif';
+      ctx.fillText(String(i===0?64:i/5),0,-rf*.84);
+    }
+    ctx.restore();
+  }
+  // degrees ring (red)
+  for(a=0;a<360;a+=5){
+    var m10=a%10===0;
+    ctx.save();ctx.rotate(a*RAD);
+    ctx.strokeStyle=RED;ctx.lineWidth=(m10?1.5:1)*DPR;
+    ctx.beginPath();ctx.moveTo(0,-rf*.72);ctx.lineTo(0,-rf*(m10?.63:.67));ctx.stroke();
+    if(a%20===0&&a!==0){
+      ctx.fillStyle=RED;ctx.font='700 '+Math.round(rf*.075)+'px "Chakra Petch",sans-serif';
+      ctx.fillText(String(a),0,-rf*.58);
+    }
+    ctx.restore();
+  }
+  ctx.strokeStyle='rgba(18,21,18,.5)';ctx.lineWidth=DPR;
+  ctx.beginPath();ctx.arc(0,0,rf*.97,0,7);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,rf*.72,0,7);ctx.stroke();
+  // markers on the card
+  var showTarget=S.target!=null&&!(S.practice.on&&S.practice.result==null);
+  function cardMark(ang,color,tri){
+    ctx.save();ctx.rotate(ang*RAD);ctx.fillStyle=color;ctx.beginPath();
+    var s=rf*.05;
+    if(tri){ctx.moveTo(-s,-rf*.995);ctx.lineTo(s,-rf*.995);ctx.lineTo(0,-rf*.9);}
+    else{ctx.moveTo(0,-rf*.995);ctx.lineTo(s,-rf*.945);ctx.lineTo(0,-rf*.895);ctx.lineTo(-s,-rf*.945);}
+    ctx.closePath();ctx.fill();ctx.restore();
+  }
+  if(showTarget)cardMark(S.target,'#e08a00',true);
+  if(S.locked!=null)cardMark(S.locked,'#2f8f2f',false);
+  // E and W luminous plates (kept upright so they stay readable)
+  [[90,'E'],[270,'W']].forEach(function(p){
+    var ang=(p[0]-0)*RAD,px=Math.sin(ang)*rf*.36,py=-Math.cos(ang)*rf*.36;
+    ctx.save();ctx.translate(px,py);ctx.rotate(h*RAD);
+    ctx.fillStyle='#d9e79c';ctx.strokeStyle='#8a9455';ctx.lineWidth=DPR;
+    var w=rf*.2,hh=rf*.15;
+    ctx.beginPath();ctx.rect(-w/2,-hh/2,w,hh);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#10140c';ctx.font='700 '+Math.round(rf*.13)+'px "Chakra Petch",sans-serif';
+    ctx.fillText(p[1],0,DPR);
+    ctx.restore();
+  });
+  // north arrow and tail
+  ctx.fillStyle='#8d948a';ctx.fillRect(-rf*.012,0,rf*.024,rf*.3);
+  ctx.fillStyle='#111';ctx.beginPath();ctx.moveTo(0,-rf*.5);ctx.lineTo(rf*.085,-rf*.2);ctx.lineTo(-rf*.085,-rf*.2);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#c9e87a';ctx.lineWidth=3*DPR;ctx.beginPath();ctx.moveTo(0,-rf*.44);ctx.lineTo(0,-rf*.26);ctx.stroke();
+  ctx.restore();
+  // pivot
+  var pg=ctx.createRadialGradient(-rf*.02,-rf*.02,rf*.01,0,0,rf*.07);pg.addColorStop(0,'#fafafa');pg.addColorStop(1,'#7d857b');
+  ctx.beginPath();ctx.arc(0,0,rf*.07,0,7);ctx.fillStyle=pg;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=DPR;ctx.stroke();
+  // fixed index on the glass: luminous bar and hairline
+  ctx.fillStyle='#b8f26a';ctx.fillRect(-1.6*DPR,-rf,3.2*DPR,rf*.13);
+  ctx.strokeStyle='#ff4d2e';ctx.lineWidth=1.6*DPR;ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.55);ctx.stroke();
+  // glass shine
+  var sg=ctx.createLinearGradient(-rf,-rf,rf*.3,rf*.1);sg.addColorStop(0,'rgba(255,255,255,.28)');sg.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=sg;ctx.beginPath();ctx.arc(0,0,rf,0,7);ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- readout + guidance ---------- */
+var guide=$('guide'),lastGuide='';
+function setGuide(cls,html){
+  var key=cls+'|'+html;if(key===lastGuide)return;lastGuide=key;
+  if(!html){guide.style.visibility='hidden';guide.className='';guide.innerHTML='';return;}
+  guide.style.visibility='visible';guide.className=cls;guide.innerHTML=html;
+}
+function updateGuide(h){
+  var P=S.practice;
+  if(P.on){
+    if(P.result){
+      var r=P.result;
+      setGuide(r.ok?'hit':'miss',(r.ok?'ผ่าน ':'คลาด ')+fmtAmount(r.err)+'<small>เล็งได้ '+fmtPrimary(r.measured)+' · เป้าหมาย '+fmtPrimary(P.target)+' · ผ่าน '+P.pass+'/'+P.total+'</small>');
+    }else{
+      setGuide('','เป้าหมาย '+fmtPrimary(P.target)+'<small>หันให้เส้นแดงตรงทิศนี้ แล้วกด "ยืนยันทิศ" · ผ่าน '+P.pass+'/'+P.total+'</small>');
+    }
+    return;
+  }
+  if(S.target!=null){
+    var d=sdiff(S.target,h);
+    if(Math.abs(d)<=1.5)setGuide('hit','ตรงเป้า '+fmtPrimary(S.target));
+    else setGuide('',(d>0?'หันขวา ':'หันซ้าย ')+fmtAmount(d)+'<small>เป้าหมาย '+fmtPrimary(S.target)+'</small>');
+    return;
+  }
+  setGuide('','');
+}
+var cache={big:'',alt:'',name:'',tag:'',cls:''};
+function put(el,key,v){if(cache[key]!==v){cache[key]=v;el.textContent=v}}
+function updateReadout(h){
+  var shown=S.locked!=null?S.locked:h,big,alt;
+  if(S.unit==='deg'){big=fmtDeg(shown);alt=fmtMil(shown)+' มิล';}
+  else{big=fmtMil(shown);alt=fmtDeg(shown);}
+  put($('big'),'big',big);put($('alt'),'alt',alt);
+  put($('dirname'),'name',dirName(shown)+(S.locked!=null?' · ตอนนี้ '+fmtPrimary(h):''));
+  var tag=S.locked!=null?'L':'A';
+  if(cache.tag!==tag){cache.tag=tag;$('tag').innerHTML=S.locked!=null?'<b>ล็อกไว้</b>':'ทิศที่เล็ง';}
+  var cls=S.locked!=null?'locked':'';
+  if(cache.cls!==cls){cache.cls=cls;$('big').className=cls;}
+}
+
+function frame(now){
+  updateView();
+  var h=liveHeading();
+  if(h==null){
+    put($('big'),'big','---');put($('alt'),'alt',S.unit==='deg'?'---- มิล':'---');
+  }else{
+    if(S.view==='sight')drawLens(h);else drawDial(h);
+    updateReadout(h);updateGuide(h);
+  }
+  refreshStatus(now);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- actions ---------- */
+function buzz(p){try{if(navigator.vibrate)navigator.vibrate(p)}catch(e){}}
+$('btnLock').addEventListener('click',function(){
+  var h=liveHeading();if(h==null)return;
+  var P=S.practice;
+  if(P.on){
+    if(P.result){nextPractice();return;}
+    var err=sdiff(h,P.target);P.total++;var ok=Math.abs(err)<=3;if(ok)P.pass++;
+    P.result={ok:ok,err:err,measured:h};buzz(ok?[30]:[30,60,30]);updateButtons();return;
+  }
+  if(S.locked!=null)S.locked=null;else{S.locked=h;buzz(40);}
+  updateButtons();
+});
+function randomTarget(){return S.unit==='mil'?toDeg(Math.floor(Math.random()*640)*10):Math.floor(Math.random()*360);}
+function nextPractice(){var P=S.practice;P.target=randomTarget();P.result=null;lastGuide='';updateButtons();}
+$('btnPractice').addEventListener('click',function(){
+  var P=S.practice;
+  if(P.on){P.on=false;P.result=null;}
+  else{P.on=true;P.pass=0;P.total=0;S.locked=null;S.target=null;nextPractice();}
+  lastGuide='';updateButtons();
+});
+function updateButtons(){
+  var P=S.practice,b=$('btnLock');
+  if(P.on){
+    b.textContent=P.result?'ข้อต่อไป':'ยืนยันทิศ';b.className='btn primary';
+    $('btnPractice').textContent='จบฝึก';$('btnPractice').className='btn on';$('btnTarget').disabled=true;
+  }else{
+    b.textContent=S.locked!=null?'ปลดล็อก':'ล็อกทิศ';b.className=S.locked!=null?'btn on':'btn primary';
+    $('btnPractice').textContent='ฝึก';$('btnPractice').className='btn';$('btnTarget').disabled=false;
+  }
+  $('btnTarget').textContent=(S.target!=null&&!P.on)?'เป้า '+fmtPrimary(S.target):'เป้าหมาย';
+}
+function show(id){$(id).hidden=false}
+function hide(id){$(id).hidden=true}
+$('btnTarget').addEventListener('click',function(){
+  var inp=$('tgtInput');
+  if(S.unit==='deg'){$('tgtLabel').textContent='ทิศเป้าหมาย (องศา 0-359)';inp.max=360;inp.value=S.target!=null?Math.round(S.target):'';}
+  else{$('tgtLabel').textContent='ทิศเป้าหมาย (มิล 0-6399)';inp.max=MILS;inp.value=S.target!=null?Math.round(toMil(S.target)):'';}
+  show('sheetTarget');inp.focus();
+});
+$('tgtOk').addEventListener('click',function(){
+  var v=parseFloat($('tgtInput').value);
+  if(isNaN(v)){hide('sheetTarget');return;}
+  S.target=mod(S.unit==='deg'?v:toDeg(v));lastGuide='';updateButtons();hide('sheetTarget');
+});
+$('tgtClear').addEventListener('click',function(){S.target=null;lastGuide='';updateButtons();hide('sheetTarget');});
+function syncUnitButtons(){$('uDeg').setAttribute('aria-pressed',S.unit==='deg');$('uMil').setAttribute('aria-pressed',S.unit==='mil');}
+$('btnSet').addEventListener('click',function(){
+  $('declInput').value=S.decl;$('smoothInput').value=S.smooth;$('smoothVal').textContent=S.smooth;syncUnitButtons();show('sheetSet');
+});
+$('uDeg').addEventListener('click',function(){S.unit='deg';syncUnitButtons();persist();updateButtons();lastGuide='';});
+$('uMil').addEventListener('click',function(){S.unit='mil';syncUnitButtons();persist();updateButtons();lastGuide='';});
+$('declInput').addEventListener('input',function(){var v=parseFloat(this.value);S.decl=isNaN(v)?0:v;persist();});
+$('smoothInput').addEventListener('input',function(){S.smooth=+this.value;$('smoothVal').textContent=S.smooth;persist();});
+$('setOk').addEventListener('click',function(){hide('sheetSet');});
+
+applyView();updateButtons();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
