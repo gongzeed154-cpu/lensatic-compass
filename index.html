@@ -68,9 +68,9 @@ body.night #lume{display:block}
 
 /* Both views are drawn from the real instrument (photos): lid diameter = 100 units, thumb tab on top,
    slot 13x48, lume windows above/below, ruler strip on the left, hinge, case, dial as wide as the lid. */
-/* sight view: scene viewBox -64 0 128 210 */
-#sightStack{--w:min(84vw,300px,calc((var(--vh) - 340px)/1.64));width:var(--w);height:calc(var(--w)*1.64)}
-#lens{position:absolute;left:calc(var(--w)*.2031);top:calc(var(--w)*.7734);width:calc(var(--w)*.59375);aspect-ratio:1/1;height:auto}
+/* sight view: scene viewBox -64 0 128 224, lens centre (0,152) */
+#sightStack{--w:min(84vw,300px,calc((var(--vh) - 340px)/1.75));width:var(--w);height:calc(var(--w)*1.75)}
+#lens{position:absolute;left:calc(var(--w)*.2031);top:calc(var(--w)*.9219);width:calc(var(--w)*.59375);aspect-ratio:1/1;height:auto}
 /* dial view: scene viewBox -60 0 114 284, bezel centre (0,213) radius 51 */
 #dialStack{--wd:min(92vw,380px,calc((var(--vh) - 392px)/2.4912));width:var(--wd);height:calc(var(--wd)*2.4912);transition:transform .25s}
 #dialStack.zoom{transform:translateY(-14%) scale(1.7);transform-origin:52.6% 75%}
@@ -162,7 +162,7 @@ body.night #shade,body.night #dim{display:block}
   <div id="view">
     <!-- sight view: lid with front-sight hairline, magnifier lens below -->
     <div class="stack" id="sightStack">
-      <svg class="scene" id="sceneS" viewBox="-64 0 128 210" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
+      <svg class="scene" id="sceneS" viewBox="-64 0 128 224" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
       <canvas id="lens" aria-label="แว่นขยายอ่านองศาและมิล"></canvas>
     </div>
     <!-- dial view: open lid above, hinge, case with the card seen from the top -->
@@ -208,7 +208,7 @@ body.night #shade,body.night #dim{display:block}
   <h1>เข็มทิศเลนเซติก</h1>
   <p>จำลองการใช้เข็มทิศเลนเซติกบนมือถือ อ่านทิศเป็นองศา (เลขแดง) และมิล (เลขดำ)</p>
   <ol>
-    <li><b>ยกมือถือตั้งฉาก</b> หันกล้องหลังไปที่หมาย เหมือนเล็งผ่านช่องเล็งหลัง ให้เส้นเล็งหน้ากลางจอทับที่หมาย แล้วอ่านค่าจากแว่นขยายด้านล่าง</li>
+    <li><b>ยกมือถือตั้งฉาก</b> หันกล้องหลังไปที่หมาย มองผ่านช่องเล็งหลังที่อยู่เหนือแว่นขยาย ให้เส้นเล็งหน้าอยู่กึ่งกลางช่องเล็งหลัง และทับกึ่งกลางที่หมาย แล้วอ่านค่าจากแว่นขยายด้านล่าง</li>
     <li><b>วางมือถือราบ</b> จะเปลี่ยนเป็นหน้าปัดมองจากด้านบน เหมือนดูเข็มทิศที่ถือในมือ</li>
     <li>กด "ล็อกทิศ" เพื่อจดค่าที่เล็งไว้</li>
     <li><b>กลางคืน:</b> กดปุ่มพระจันทร์ให้จอเป็นสีแดง วางมือถือราบ แล้ว<b>หมุนวงแหวนรอบหน้าปัด</b>ทีละคลิก (3° ต่อคลิก) ให้ครบ จากนั้นหันตัวจนลูกศรเหนือทับเส้นเรืองแสงบนวงแหวน</li>
@@ -489,13 +489,16 @@ function fmtAmount(deg){return S.unit==='deg'?(Math.round(Math.abs(deg))+'°'):(
 /* ---------- instrument art, proportions taken from photos of the real compass ----------
    unit: lid diameter = 100, origin x = lid centre, y = top of the thumb tab (lid centre at y 79) */
 var OL='#5b6d42',OLD='#46552f',INK='#1d2417';
-function artDefs(u){
+function artDefs(u,sight){
   return '<defs>'+
   '<linearGradient id="cg'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#62744a"/><stop offset="1" stop-color="#3b4828"/></linearGradient>'+
   '<radialGradient id="fl'+u+'" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#5a6c43"/><stop offset="1" stop-color="#46552f"/></radialGradient>'+
   '<radialGradient id="rb'+u+'" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#262926"/><stop offset=".55" stop-color="#0d0e0d"/><stop offset="1" stop-color="#040504"/></radialGradient>'+
   '<mask id="mk'+u+'" maskUnits="userSpaceOnUse" x="-70" y="-5" width="140" height="300">'+
-  '<rect x="-70" y="-5" width="140" height="300" fill="#fff"/><rect x="-6.5" y="43" width="13" height="48" rx="6.5" fill="#000"/></mask>'+
+  '<rect x="-70" y="-5" width="140" height="300" fill="#fff"/><rect x="-6.5" y="43" width="13" height="'+(sight?77.5:48)+'" rx="6.5" fill="#000"/></mask>'+   // sight view: slot runs down to the bottom of the rear U
+  // rear sight notch: open at the top edge of the eyecup, as wide as the front slot, in line with it (photo of the real compass)
+  '<mask id="mr'+u+'" maskUnits="userSpaceOnUse" x="-70" y="-5" width="140" height="300">'+
+  '<rect x="-70" y="-5" width="140" height="300" fill="#fff"/><rect x="-5.5" y="85" width="11" height="34" rx="5.5" fill="#000"/></mask>'+
   '</defs>';
 }
 function ruler(x,y,w,h,label,nums,u){
@@ -506,7 +509,7 @@ function ruler(x,y,w,h,label,nums,u){
   '<text transform="translate('+(x+w*.78)+' '+(y+h*.42)+') rotate(-90)" font-size="2.6" fill="'+INK+'" font-family="Chakra Petch,sans-serif" font-weight="700">'+nums+'</text>';
 }
 // open lid: thumb tab, round dish, 13x48 sight slot, wire, lume windows above and below, METERS strip on the left
-function lidArt(u){
+function lidArt(u,sight){
   return '<g mask="url(#mk'+u+')">'+
     ruler(-59,20,9,118,'METERS','4000',u)+
     '<path d="M-23 4Q-23 0 -19 0H19Q23 0 23 4V34.6A50 50 0 1 1 -23 34.6Z" fill="'+OL+'" stroke="'+INK+'" stroke-width=".8"/>'+
@@ -514,13 +517,14 @@ function lidArt(u){
     '<circle cx="0" cy="79" r="48.6" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>'+
     '<rect x="-18" y="4" width="36" height="31" rx="3" fill="url(#fl'+u+')" stroke="rgba(0,0,0,.3)" stroke-width=".5"/>'+
   '</g>'+
-  '<rect x="-6.5" y="43" width="13" height="48" rx="6.5" fill="none" stroke="rgba(0,0,0,.7)" stroke-width=".8"/>'+
-  '<rect x="-7.5" y="42" width="15" height="50" rx="7.5" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".5"/>'+
+  '<rect x="-6.5" y="43" width="13" height="'+(sight?77.5:48)+'" rx="6.5" fill="none" stroke="rgba(0,0,0,.7)" stroke-width=".8"/>'+
+  '<rect x="-7.5" y="42" width="15" height="'+(sight?79.5:50)+'" rx="7.5" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".5"/>'+
   '<rect x="-2.8" y="14" width="5.6" height="21" rx="2.8" fill="#161b0f" stroke="rgba(0,0,0,.6)" stroke-width=".4"/>'+
   '<rect class="lumebar" x="-1.2" y="18" width="2.4" height="14" rx="1.2"/>'+
-  '<rect x="-3.8" y="98" width="7.6" height="24" rx="3.8" fill="#161b0f" stroke="rgba(0,0,0,.6)" stroke-width=".4"/>'+
-  '<rect class="lumebar" x="-1.6" y="102" width="3.2" height="16" rx="1.6"/>'+
-  '<line x1="0" y1="13" x2="0" y2="123" stroke="#0e1209" stroke-width=".5"/>'+
+  // lower lume window (dial view); in sight view the slot itself runs down to the rear U instead
+  (sight?'':'<rect x="-3.8" y="98" width="7.6" height="24" rx="3.8" fill="#161b0f" stroke="rgba(0,0,0,.6)" stroke-width=".4"/>'+
+  '<rect class="lumebar" x="-1.6" y="102" width="3.2" height="16" rx="1.6"/>')+
+  '<line x1="0" y1="13" x2="0" y2="'+(sight?116:123)+'" stroke="#0e1209" stroke-width=".5"/>'+
   '<line x1="0" y1="43.5" x2="0" y2="90.5" stroke="#ff4d2e" stroke-width="1.1"/>';
 }
 // hinge: tongue under the lid, axle with two knuckles, dimple
@@ -543,15 +547,20 @@ function sceneDial(u){
   hingeArt()+lidArt(u);
 }
 function sceneSight(u){
-  return artDefs(u)+
-  '<rect x="-60" y="112" width="120" height="94" rx="15" fill="url(#cg'+u+')" stroke="'+INK+'" stroke-width=".9"/>'+
-  '<rect x="-58.5" y="113.5" width="117" height="91" rx="13.5" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".6"/>'+
-  '<g fill="#2f3b1f" stroke="'+INK+'" stroke-width=".5"><circle cx="-48" cy="193" r="2.8"/><circle cx="48" cy="193" r="2.8"/></g>'+
-  '<path d="M-49.4 193h2.8M46.6 193h2.8" stroke="'+INK+'" stroke-width=".6"/>'+
-  lidArt(u)+
-  // black rubber eyecup of the rear sight, much wider than the lens glass
-  '<rect x="-63" y="91" width="126" height="94" rx="46" ry="44" fill="url(#rb'+u+')" stroke="#000" stroke-width=".6"/>'+
-  '<path d="M-38 104Q-20 96 6 96" stroke="rgba(255,255,255,.1)" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+  return artDefs(u,true)+
+  // case starts below the slot's lower end so only the world shows through the slot and the rear U
+  '<rect x="-60" y="123" width="120" height="99" rx="15" fill="url(#cg'+u+')" stroke="'+INK+'" stroke-width=".9"/>'+
+  '<rect x="-58.5" y="124.5" width="117" height="96" rx="13.5" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".6"/>'+
+  '<g fill="#2f3b1f" stroke="'+INK+'" stroke-width=".5"><circle cx="-48" cy="209" r="2.8"/><circle cx="48" cy="209" r="2.8"/></g>'+
+  '<path d="M-49.4 209h2.8M46.6 209h2.8" stroke="'+INK+'" stroke-width=".6"/>'+
+  lidArt(u,true)+
+  // black rubber eyecup of the rear sight, much wider than the lens glass, with the rear sight notch in its top edge
+  '<rect x="-63" y="91" width="126" height="109" rx="46" ry="46" fill="url(#rb'+u+')" stroke="#000" stroke-width=".6" mask="url(#mr'+u+')"/>'+
+  '<path d="M-40 106Q-24 98 -10 98" stroke="rgba(255,255,255,.1)" stroke-width="2.4" fill="none" stroke-linecap="round"/>'+
+  '<path d="M-5.5 91V113.5A5.5 5.5 0 0 0 5.5 113.5V91" fill="none" stroke="rgba(255,255,255,.22)" stroke-width=".9"/>'+
+  '<path d="M-5.5 91V113.5A5.5 5.5 0 0 0 5.5 113.5V91" fill="none" stroke="rgba(0,0,0,.9)" stroke-width=".5"/>'+
+  // the front-sight wire runs on down the rear notch, centred in it
+  '<line x1="0" y1="90.5" x2="0" y2="116" stroke="#ff4d2e" stroke-width="1.1"/>';
 }
 $('sceneS').innerHTML=sceneSight('s');
 $('sceneD').innerHTML=sceneDial('d');
@@ -784,7 +793,7 @@ function drawLume(h){
     var X=function(x){return sr.left+(x-vb.x)*k},Y=function(y){return sr.top+(y-vb.y)*k};
     ctx.lineCap='round';
     ctx.lineWidth=2.4*k;ctx.beginPath();ctx.moveTo(X(0),Y(19.2));ctx.lineTo(X(0),Y(30.8));ctx.stroke();
-    if(S.view==='dial'){ctx.lineWidth=3.2*k;ctx.beginPath();ctx.moveTo(X(0),Y(103.6));ctx.lineTo(X(0),Y(116.4));ctx.stroke();}   // hidden behind the eyecup in sight view
+    if(S.view==='dial'){ctx.lineWidth=3.2*k;ctx.beginPath();ctx.moveTo(X(0),Y(103.6));ctx.lineTo(X(0),Y(116.4));ctx.stroke();}   // sight view has no lower window: the slot runs down to the rear U
     ctx.lineCap='butt';
   }
   if(S.view!=='dial')return;
