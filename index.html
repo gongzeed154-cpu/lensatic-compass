@@ -115,7 +115,7 @@ body.night #lume{display:block}
 .field label{font-size:14px;color:var(--mute)}
 .field input[type=number]{min-height:48px;border-radius:10px;border:1px solid var(--line);background:#0b100c;padding:0 12px;font-size:18px;width:100%}
 .field small{color:var(--mute);font-size:12px}
-.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px}
 .seg button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:#0b100c;font-weight:700}
 .seg button[aria-pressed=true]{background:var(--lum);color:#10200a;border-color:var(--lum)}
 .sheet .row{display:flex;gap:8px}
@@ -258,8 +258,9 @@ body.night #shade,body.night #dim{display:block}
     <div class="seg">
       <button id="mDay" aria-pressed="true">กลางวัน</button>
       <button id="mNight" aria-pressed="false">กลางคืน (แดง)</button>
+      <button id="mDark" aria-pressed="false">มืดสนิท</button>
     </div>
-    <small>โหมดกลางคืนแสดงเฉพาะแสงสีแดง เพื่อไม่ให้ตาเสียการมองเห็นในที่มืด (ปุ่มพระจันทร์ด้านบนก็สลับได้)</small>
+    <small>กลางคืน = แสงสีแดงอย่างเดียว ไม่ทำให้ตาเสียการมองเห็น · มืดสนิท = จอดำ เห็นเฉพาะพรายน้ำสีเขียวกับจำนวนคลิก (ปุ่มพระจันทร์ด้านบนกดวนได้ ในโหมดมืดสนิทจะมีวงเรืองแสงรอบปุ่มบอกตำแหน่ง)</small>
   </div>
   <div class="field">
     <label for="brightInput">ความสว่างกลางคืน <b id="brightVal">100</b>%</label>
@@ -308,7 +309,7 @@ var S = {
   off:0, hasOff:false,
   mode:'auto', view:'sight',
   locked:null, target:null,
-  night:false, bright:100, snd:true, bezel:0, hit:false, zoom:true,
+  night:false, dark:false, bright:100, snd:true, bezel:0, hit:false, zoom:true,
   practice:{on:false,target:null,result:null,pass:0,total:0},
   started:false
 };
@@ -318,11 +319,12 @@ try{
   if(typeof saved.decl==='number')S.decl=saved.decl;
   if(typeof saved.smooth==='number')S.smooth=saved.smooth;
   if(saved.night===true)S.night=true;
+  if(saved.dark===true){S.night=true;S.dark=true;}
   if(typeof saved.bright==='number')S.bright=Math.min(100,Math.max(15,saved.bright));
   if(saved.snd===false)S.snd=false;
   if(typeof saved.zoom==='boolean')S.zoom=saved.zoom;   // zoomed on first run; the button remembers the user's choice
 }catch(e){}
-function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth,night:S.night,bright:S.bright,snd:S.snd,zoom:S.zoom}))}catch(e){}}
+function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth,night:S.night,dark:S.dark,bright:S.bright,snd:S.snd,zoom:S.zoom}))}catch(e){}}
 
 /* ---------- heading maths (alpha measured from north) ---------- */
 // where the BACK of the phone points (phone upright)
@@ -745,7 +747,6 @@ function drawDial(h){
   var pg=ctx.createRadialGradient(-rf*.02,-rf*.02,rf*.01,0,0,rf*.07);pg.addColorStop(0,'#fafafa');pg.addColorStop(1,'#7d857b');
   ctx.beginPath();ctx.arc(0,0,rf*.07,0,7);ctx.fillStyle=pg;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=DPR;ctx.stroke();
   // fixed index on the glass: luminous bar and hairline
-  if(!S.night){ctx.fillStyle='#b8f26a';ctx.fillRect(-1.6*DPR,-rf,3.2*DPR,rf*.13);}
   ctx.strokeStyle='#ff4d2e';ctx.lineWidth=1.6*DPR;ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.55);ctx.stroke();
   // glass shine
   var sg=ctx.createLinearGradient(-rf,-rf,rf*.3,rf*.1);sg.addColorStop(0,S.night?'rgba(255,255,255,.05)':'rgba(255,255,255,.28)');sg.addColorStop(1,'rgba(255,255,255,0)');
@@ -762,11 +763,15 @@ function drawLume(h){
   if(!S.night||!S.started||h==null)return;
   if(!$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden)return;   // keep the glow off the sheets
   ctx.scale(DPR,DPR);
-  var vr=$('view').getBoundingClientRect();ctx.beginPath();ctx.rect(vr.left,vr.top,vr.width,vr.height);ctx.clip();   // zoomed art must not glow over the header or panel
   var G='#8dff6a',a=.55+.45*S.bright/100;
   ctx.globalAlpha=a;ctx.fillStyle=G;ctx.strokeStyle=G;ctx.shadowColor='rgba(90,255,70,.95)';ctx.shadowBlur=12;
   function dot(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();}
-  // dots above and below the front-sight slot
+  if(S.dark){   // pitch-dark mode hides the buttons: glow a ring around the moon button so the way out stays findable
+    var mb=$('btnNight').getBoundingClientRect();
+    ctx.lineWidth=2;ctx.beginPath();ctx.arc(mb.left+mb.width/2,mb.top+mb.height/2,mb.width/2-2,0,7);ctx.stroke();
+    dot(mb.left+mb.width/2,mb.top+mb.height/2,3);
+  }
+  var vr=$('view').getBoundingClientRect();ctx.beginPath();ctx.rect(vr.left,vr.top,vr.width,vr.height);ctx.clip();   // zoomed art must not glow over the header or panel
   // lume bars in the windows above and below the slot (lid units, see lidArt)
   var sc=S.view==='dial'?$('sceneD'):$('sceneS'),sr=sc.getBoundingClientRect(),vb=sc.viewBox.baseVal;
   if(sr.width){
@@ -778,8 +783,13 @@ function drawLume(h){
     ctx.lineCap='butt';
   }
   if(S.view!=='dial')return;
+  // bezel click count, big, so it can be read without any other light on the screen
+  ctx.shadowBlur=8;ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.font='700 34px "Chakra Petch",sans-serif';ctx.fillText('คลิก '+S.bezel,vr.left+14,vr.top+8);
+  ctx.font='600 20px "Chakra Petch",sans-serif';ctx.fillText(S.bezel*3+'°',vr.left+14,vr.top+46);
+  ctx.shadowBlur=12;
   var rc=dial.getBoundingClientRect();if(!rc.width)return;
-  var r=rc.width/2,rf=r*.93;
+  var r=rc.width/2,rf=r*.87;
   ctx.translate(rc.left+r,rc.top+r);
   // bezel luminous line (ring bar, line across the glass, dot)
   ctx.save();ctx.rotate(-S.bezel*3*RAD);
@@ -787,8 +797,6 @@ function drawLume(h){
   ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.74);ctx.stroke();
   dot(0,-rf*.74,3.6);
   ctx.restore();
-  // fixed index bar on the glass
-  ctx.fillRect(-1.6,-rf,3.2,rf*.13);
   // card: north-arrow stripe and E/W plates turn with the card
   ctx.save();ctx.rotate(-h*RAD);
   ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-rf*.44);ctx.lineTo(0,-rf*.26);ctx.stroke();
@@ -854,7 +862,7 @@ function frame(now){
     if(S.view==='sight')drawLens(h);else drawDial(h);
     updateReadout(h);updateGuide(h);
   }
-  drawLume(h);
+  updateDim();drawLume(h);
   refreshStatus(now);
   requestAnimationFrame(frame);
 }
@@ -919,6 +927,9 @@ $('setOk').addEventListener('click',function(){hide('sheetSet');});
 
 /* ---------- click bezel (3 degrees per click, 120 clicks) ---------- */
 var AC=null;
+// iPhone only lets audio start from a real tap (touchend/click), not from a drag, so unlock it on the first tap anywhere
+function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){}}
+['touchend','click'].forEach(function(ev){document.addEventListener(ev,unlockAudio,{passive:true});});
 function clickSound(){
   if(!S.snd)return;
   try{
@@ -966,17 +977,26 @@ dial.addEventListener('pointerup',endDrag);
 dial.addEventListener('pointercancel',endDrag);
 
 /* ---------- night mode ---------- */
+// look: 0 day, 1 night (red), 2 pitch dark (only the lume glows)
+function sheetsOpen(){return !$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden;}
+function updateDim(){
+  var o='0';
+  if(S.night)o=(S.dark&&!sheetsOpen())?'1':String(1-S.bright/100);   // sheets stay readable (red) so settings can be changed
+  var d=$('dim');if(d.style.opacity!==o)d.style.opacity=o;
+}
 function applyNight(){
   document.body.classList.toggle('night',S.night);
-  $('dim').style.opacity=S.night?String(1-S.bright/100):'0';
+  document.body.classList.toggle('dark',S.dark);
+  updateDim();
   $('btnNight').setAttribute('aria-pressed',S.night);
-  $('mDay').setAttribute('aria-pressed',!S.night);$('mNight').setAttribute('aria-pressed',S.night);
+  $('mDay').setAttribute('aria-pressed',!S.night);$('mNight').setAttribute('aria-pressed',S.night&&!S.dark);$('mDark').setAttribute('aria-pressed',S.dark);
   var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',S.night?'#000000':'#0b100c');
 }
-function setNight(v){S.night=v;persist();applyNight();}
-$('btnNight').addEventListener('click',function(){setNight(!S.night);});
-$('mDay').addEventListener('click',function(){setNight(false);});
-$('mNight').addEventListener('click',function(){setNight(true);});
+function setLook(n){S.night=n>=1;S.dark=n===2;persist();applyNight();}
+$('btnNight').addEventListener('click',function(){setLook(((S.dark?2:(S.night?1:0))+1)%3);});   // day > night > dark > day
+$('mDay').addEventListener('click',function(){setLook(0);});
+$('mNight').addEventListener('click',function(){setLook(1);});
+$('mDark').addEventListener('click',function(){setLook(2);});
 $('brightInput').addEventListener('input',function(){S.bright=+this.value;$('brightVal').textContent=S.bright;persist();applyNight();});
 function syncSnd(){$('sndOn').setAttribute('aria-pressed',S.snd);$('sndOff').setAttribute('aria-pressed',!S.snd);}
 $('sndOn').addEventListener('click',function(){S.snd=true;syncSnd();persist();clickSound();});
