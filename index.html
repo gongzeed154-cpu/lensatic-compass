@@ -59,20 +59,26 @@ header{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-
 
 #view{display:grid;place-items:center;min-height:0;overflow:hidden}
 .stack{position:relative}
-.lid svg{display:block;width:100%;height:auto}
-.hair{position:absolute;width:2px;background:var(--wire);box-shadow:0 0 6px rgba(255,77,46,.75);left:calc(50% - 1px)}
 canvas{display:block}
+.scene{position:absolute;left:0;top:0;width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5))}
+.lumebar{fill:#c9e87a;stroke:#1d2417;stroke-width:.3}
+body.night .lumebar{fill:#2a1a1a}   /* the green glow is drawn by #lume, above the red filter */
+#lume{position:fixed;inset:0;width:100%;height:100%;z-index:10001;pointer-events:none;display:none}
+body.night #lume{display:block}
 
-/* sight view */
-#sightStack{--w:min(84vw,300px,calc((var(--vh) - 340px)/1.52));width:var(--w);height:calc(var(--w)*1.52)}
-#sightStack .lid{position:absolute;left:0;top:0;width:100%}
-#sightStack .hair{top:calc(var(--w)*.05);height:calc(var(--w)*.9)}
-#lens{position:absolute;left:19%;top:calc(var(--w)*.92);width:62%;aspect-ratio:1/1;height:auto}
-/* dial view */
-#dialStack{--wd:min(92vw,380px,calc((var(--vh) - 340px)/1.57));width:var(--wd);height:calc(var(--wd)*1.57)}
-#dialStack .lid{position:absolute;left:20%;top:0;width:60%}
-#dialStack .hair{top:calc(var(--wd)*.03);height:calc(var(--wd)*.57)}
-#dial{position:absolute;left:0;top:calc(var(--wd)*.57);width:100%;aspect-ratio:1/1;height:auto}
+/* Both views are drawn from the real instrument (photos): lid diameter = 100 units, thumb tab on top,
+   slot 13x48, lume windows above/below, ruler strip on the left, hinge, case, dial as wide as the lid. */
+/* sight view: scene viewBox -64 0 128 210 */
+#sightStack{--w:min(84vw,300px,calc((var(--vh) - 340px)/1.64));width:var(--w);height:calc(var(--w)*1.64)}
+#lens{position:absolute;left:calc(var(--w)*.2031);top:calc(var(--w)*.7734);width:calc(var(--w)*.59375);aspect-ratio:1/1;height:auto}
+/* dial view: scene viewBox -60 0 114 284, bezel centre (0,213) radius 51 */
+#dialStack{--wd:min(92vw,380px,calc((var(--vh) - 392px)/2.4912));width:var(--wd);height:calc(var(--wd)*2.4912);transition:transform .25s}
+#dialStack.zoom{transform:translateY(-14%) scale(1.7);transform-origin:52.6% 75%}
+#dial{position:absolute;left:calc(var(--wd)*.0789);top:calc(var(--wd)*1.421);width:calc(var(--wd)*.8947);aspect-ratio:1/1;height:auto}
+#btnZoom{position:absolute;right:12px;top:6px;z-index:3;width:44px;height:44px;border-radius:22px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center}
+#btnZoom svg{width:22px;height:22px;stroke:var(--txt);fill:none;stroke-width:1.8;stroke-linecap:round}
+#btnZoom[aria-pressed=true]{background:var(--amber);border-color:var(--amber)}
+#btnZoom[aria-pressed=true] svg{stroke:#2a1a00}
 
 #panel{background:var(--panel);border-top:1px solid var(--line);
   padding:10px max(16px,env(safe-area-inset-left,0px)) calc(env(safe-area-inset-bottom,0px) + 10px) max(16px,env(safe-area-inset-right,0px));
@@ -117,6 +123,19 @@ canvas{display:block}
 #demoBar{position:absolute;left:12px;right:12px;bottom:calc(158px + env(safe-area-inset-bottom,0px));z-index:5;display:none;
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;color:var(--mute)}
 #demoBar input{width:100%}
+/* click bezel (dial view) */
+#dial{touch-action:none}
+#bezelBar{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:8px;align-items:center}
+#bezelBar .btn{min-height:42px;font-size:14px}
+#bezelTxt{text-align:center;font-family:var(--display);font-weight:600;font-size:15px;font-variant-numeric:tabular-nums;line-height:1.2}
+#bezelTxt small{display:block;font-family:var(--body);font-weight:400;font-size:11px;color:var(--mute)}
+#app.dialv #demoBar{bottom:calc(214px + env(safe-area-inset-bottom,0px))}
+/* night mode: everything is multiplied by pure red so no green/blue light reaches the eye */
+#shade{position:fixed;inset:0;z-index:9999;pointer-events:none;background:#f00;mix-blend-mode:multiply;display:none}
+#dim{position:fixed;inset:0;z-index:10000;pointer-events:none;background:#000;opacity:0;display:none}
+body.night #shade,body.night #dim{display:block}
+.iconbtn[aria-pressed=true]{background:var(--amber);border-color:var(--amber)}
+.iconbtn[aria-pressed=true] svg{stroke:#2a1a00}
 @media (max-width:360px){#big{font-size:40px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -130,6 +149,9 @@ canvas{display:block}
   <header>
     <div class="chip" id="status"><i></i><span id="statusTxt">รอเริ่มใช้งาน</span></div>
     <button class="chip" id="btnView" aria-label="สลับมุมมอง"><span id="viewTxt">อัตโนมัติ · เล็ง</span></button>
+    <button class="iconbtn" id="btnNight" aria-label="โหมดกลางคืน" aria-pressed="false">
+      <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
     <button class="iconbtn" id="btnSet" aria-label="ตั้งค่า">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
@@ -140,16 +162,17 @@ canvas{display:block}
   <div id="view">
     <!-- sight view: lid with front-sight hairline, magnifier lens below -->
     <div class="stack" id="sightStack">
-      <div class="lid" id="lidS"></div>
-      <div class="hair" aria-hidden="true"></div>
+      <svg class="scene" id="sceneS" viewBox="-64 0 128 210" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
       <canvas id="lens" aria-label="แว่นขยายอ่านองศาและมิล"></canvas>
     </div>
-    <!-- dial view: lid above, card seen from the top -->
+    <!-- dial view: open lid above, hinge, case with the card seen from the top -->
     <div class="stack" id="dialStack" hidden>
-      <div class="lid" id="lidD"></div>
-      <div class="hair" aria-hidden="true"></div>
+      <svg class="scene" id="sceneD" viewBox="-60 0 114 284" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
       <canvas id="dial" aria-label="หน้าปัดเข็มทิศ"></canvas>
     </div>
+    <button id="btnZoom" aria-label="ซูมหน้าปัด" aria-pressed="false" hidden>
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M11 8v6M8 11h6"/></svg>
+    </button>
   </div>
 
   <section id="panel">
@@ -162,6 +185,11 @@ canvas{display:block}
         <div id="alt">---</div>
         <div id="dirname">—</div>
       </div>
+    </div>
+    <div id="bezelBar" hidden>
+      <button class="btn" id="bzUp" aria-label="หมุนวงแหวนทวนเข็ม เพิ่ม 1 คลิก">↺ +1 คลิก</button>
+      <div id="bezelTxt" aria-live="polite">คลิก 0<small>0°</small></div>
+      <button class="btn" id="bzDown" aria-label="หมุนวงแหวนตามเข็ม ลด 1 คลิก">↻ −1 คลิก</button>
     </div>
     <div class="btns">
       <button class="btn primary" id="btnLock">ล็อกทิศ</button>
@@ -183,6 +211,7 @@ canvas{display:block}
     <li><b>ยกมือถือตั้งฉาก</b> หันกล้องหลังไปที่หมาย เหมือนเล็งผ่านช่องเล็งหลัง ให้เส้นเล็งหน้ากลางจอทับที่หมาย แล้วอ่านค่าจากแว่นขยายด้านล่าง</li>
     <li><b>วางมือถือราบ</b> จะเปลี่ยนเป็นหน้าปัดมองจากด้านบน เหมือนดูเข็มทิศที่ถือในมือ</li>
     <li>กด "ล็อกทิศ" เพื่อจดค่าที่เล็งไว้</li>
+    <li><b>กลางคืน:</b> กดปุ่มพระจันทร์ให้จอเป็นสีแดง วางมือถือราบ แล้ว<b>หมุนวงแหวนรอบหน้าปัด</b>ทีละคลิก (3° ต่อคลิก) ให้ครบ จากนั้นหันตัวจนลูกศรเหนือทับเส้นเรืองแสงบนวงแหวน</li>
   </ol>
   <div class="note">ถอดเคสที่มีแม่เหล็ก อยู่ห่างโลหะ สายไฟ รถยนต์ ถ้าค่าเพี้ยน ให้โบกมือถือเป็นเลข 8 ในอากาศสองสามครั้งเพื่อปรับเทียบ</div>
   <div class="row">
@@ -224,8 +253,32 @@ canvas{display:block}
     <input id="smoothInput" type="range" min="1" max="10" value="5">
     <small>ค่าสูงนิ่งกว่าแต่ตอบสนองช้ากว่า</small>
   </div>
+  <div class="field">
+    <label>โหมดการมอง</label>
+    <div class="seg">
+      <button id="mDay" aria-pressed="true">กลางวัน</button>
+      <button id="mNight" aria-pressed="false">กลางคืน (แดง)</button>
+    </div>
+    <small>โหมดกลางคืนแสดงเฉพาะแสงสีแดง เพื่อไม่ให้ตาเสียการมองเห็นในที่มืด (ปุ่มพระจันทร์ด้านบนก็สลับได้)</small>
+  </div>
+  <div class="field">
+    <label for="brightInput">ความสว่างกลางคืน <b id="brightVal">100</b>%</label>
+    <input id="brightInput" type="range" min="15" max="100" value="100">
+  </div>
+  <div class="field">
+    <label>เสียงคลิกวงแหวน</label>
+    <div class="seg">
+      <button id="sndOn" aria-pressed="true">เปิด</button>
+      <button id="sndOff" aria-pressed="false">ปิด</button>
+    </div>
+    <small>วงแหวนหมุนทีละ 3° (120 คลิก) มีเสียงและแรงสั่นเบา ๆ ทุกคลิก นับคลิกได้โดยไม่ต้องมองจอ</small>
+  </div>
   <button class="btn primary" id="setOk">เสร็จ</button>
 </div>
+
+<div id="shade"></div>
+<div id="dim"></div>
+<canvas id="lume" aria-hidden="true"></canvas>
 
 <script>
 (function(){
@@ -255,6 +308,7 @@ var S = {
   off:0, hasOff:false,
   mode:'auto', view:'sight',
   locked:null, target:null,
+  night:false, bright:100, snd:true, bezel:0, hit:false, zoom:true,
   practice:{on:false,target:null,result:null,pass:0,total:0},
   started:false
 };
@@ -263,8 +317,12 @@ try{
   if(saved.unit)S.unit=saved.unit;
   if(typeof saved.decl==='number')S.decl=saved.decl;
   if(typeof saved.smooth==='number')S.smooth=saved.smooth;
+  if(saved.night===true)S.night=true;
+  if(typeof saved.bright==='number')S.bright=Math.min(100,Math.max(15,saved.bright));
+  if(saved.snd===false)S.snd=false;
+  if(typeof saved.zoom==='boolean')S.zoom=saved.zoom;   // zoomed on first run; the button remembers the user's choice
 }catch(e){}
-function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth}))}catch(e){}}
+function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth,night:S.night,bright:S.bright,snd:S.snd,zoom:S.zoom}))}catch(e){}}
 
 /* ---------- heading maths (alpha measured from north) ---------- */
 // where the BACK of the phone points (phone upright)
@@ -387,8 +445,14 @@ function applyView(){
   $('dialStack').hidden=S.view!=='dial';
   $('cam').style.visibility=S.view==='sight'?'visible':'hidden';
   $('bg').hidden=S.view==='sight';
+  $('bezelBar').hidden=S.view!=='dial';
+  $('btnZoom').hidden=S.view!=='dial';
+  $('dialStack').classList.toggle('zoom',S.zoom);
+  $('btnZoom').setAttribute('aria-pressed',S.zoom);
+  $('app').classList.toggle('dialv',S.view==='dial');
   renderViewBtn();
 }
+$('btnZoom').addEventListener('click',function(){S.zoom=!S.zoom;persist();applyView();});
 function updateView(){var v=pickView();if(v!==S.view){S.view=v;applyView();}}
 $('btnView').addEventListener('click',function(){
   S.mode=S.mode==='auto'?'sight':(S.mode==='sight'?'dial':'auto');
@@ -420,41 +484,88 @@ function fmtMil(h){return pad(Math.round(toMil(mod(h)))%MILS,4)}
 function fmtPrimary(h){return S.unit==='deg'?fmtDeg(h):fmtMil(h)+' มิล'}
 function fmtAmount(deg){return S.unit==='deg'?(Math.round(Math.abs(deg))+'°'):(Math.round(toMil(Math.abs(deg)))+' มิล')}
 
-/* ---------- lid (front sight) ---------- */
-function lidSVG(uid){
-  var ticks='';
-  for(var i=0;i<14;i++){var y=30+i*4.6;ticks+='<line x1="1.5" x2="'+(i%2?4.2:6)+'" y1="'+y+'" y2="'+y+'" stroke="#1d2417" stroke-width=".5"/>';}
-  return '<svg viewBox="0 0 100 108" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">'+
-  '<defs><mask id="mk'+uid+'" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="108">'+
-  '<rect width="100" height="108" fill="#fff"/><rect x="44.4" y="30" width="11.2" height="50" rx="5.6" fill="#000"/></mask></defs>'+
-  '<g mask="url(#mk'+uid+')"><g opacity=".86">'+
-  '<rect x="0" y="26" width="9" height="62" rx="1" fill="#46552f" stroke="#1d2417" stroke-width=".8"/>'+
-  '<circle cx="50" cy="58" r="42" fill="#55663f" stroke="#1d2417" stroke-width="1"/>'+
-  '<rect x="33" y="0" width="34" height="20" rx="3" fill="#55663f" stroke="#1d2417" stroke-width="1"/>'+
-  '<rect x="33.6" y="12" width="32.8" height="12" fill="#55663f"/>'+
-  '<circle cx="50" cy="58" r="37" fill="none" stroke="rgba(0,0,0,.28)" stroke-width=".8"/>'+
-  ticks+
-  '<text x="7" y="86" transform="rotate(-90 7 86)" font-size="4" fill="#1d2417" font-family="Chakra Petch,sans-serif" font-weight="700">METERS</text>'+
-  '<circle cx="50" cy="93" r="2.1" fill="#3c4a2a" stroke="#1d2417" stroke-width=".5"/>'+
-  '</g></g>'+
-  '<rect x="44.4" y="30" width="11.2" height="50" rx="5.6" fill="none" stroke="rgba(0,0,0,.65)" stroke-width="1"/>'+
-  '<rect x="43.4" y="29" width="13.2" height="52" rx="6.6" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".7"/>'+
-  '</svg>';
+/* ---------- instrument art, proportions taken from photos of the real compass ----------
+   unit: lid diameter = 100, origin x = lid centre, y = top of the thumb tab (lid centre at y 79) */
+var OL='#5b6d42',OLD='#46552f',INK='#1d2417';
+function artDefs(u){
+  return '<defs>'+
+  '<linearGradient id="cg'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#62744a"/><stop offset="1" stop-color="#3b4828"/></linearGradient>'+
+  '<radialGradient id="fl'+u+'" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#5a6c43"/><stop offset="1" stop-color="#46552f"/></radialGradient>'+
+  '<radialGradient id="rb'+u+'" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#262926"/><stop offset=".55" stop-color="#0d0e0d"/><stop offset="1" stop-color="#040504"/></radialGradient>'+
+  '<mask id="mk'+u+'" maskUnits="userSpaceOnUse" x="-70" y="-5" width="140" height="300">'+
+  '<rect x="-70" y="-5" width="140" height="300" fill="#fff"/><rect x="-6.5" y="43" width="13" height="48" rx="6.5" fill="#000"/></mask>'+
+  '</defs>';
 }
-$('lidS').innerHTML=lidSVG('s');
-$('lidD').innerHTML=lidSVG('d');
+function ruler(x,y,w,h,label,nums,u){
+  var t='',i,n=Math.floor(h/6.2);
+  for(i=0;i<n;i++){var yy=y+4+i*6.2;t+='<line x1="'+(x+1)+'" x2="'+(x+(i%2?w*.38:w*.62))+'" y1="'+yy+'" y2="'+yy+'" stroke="'+INK+'" stroke-width=".35"/>';}
+  return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="1" fill="'+OLD+'" stroke="'+INK+'" stroke-width=".5"/>'+t+
+  '<text transform="translate('+(x+w*.78)+' '+(y+h-3)+') rotate(-90)" font-size="3.3" fill="'+INK+'" font-family="Chakra Petch,sans-serif" font-weight="700">'+label+'</text>'+
+  '<text transform="translate('+(x+w*.78)+' '+(y+h*.42)+') rotate(-90)" font-size="2.6" fill="'+INK+'" font-family="Chakra Petch,sans-serif" font-weight="700">'+nums+'</text>';
+}
+// open lid: thumb tab, round dish, 13x48 sight slot, wire, lume windows above and below, METERS strip on the left
+function lidArt(u){
+  return '<g mask="url(#mk'+u+')">'+
+    ruler(-59,20,9,118,'METERS','4000',u)+
+    '<path d="M-23 4Q-23 0 -19 0H19Q23 0 23 4V34.6A50 50 0 1 1 -23 34.6Z" fill="'+OL+'" stroke="'+INK+'" stroke-width=".8"/>'+
+    '<circle cx="0" cy="79" r="45" fill="url(#fl'+u+')" stroke="rgba(0,0,0,.35)" stroke-width=".6"/>'+
+    '<circle cx="0" cy="79" r="48.6" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".5"/>'+
+    '<rect x="-18" y="4" width="36" height="31" rx="3" fill="url(#fl'+u+')" stroke="rgba(0,0,0,.3)" stroke-width=".5"/>'+
+  '</g>'+
+  '<rect x="-6.5" y="43" width="13" height="48" rx="6.5" fill="none" stroke="rgba(0,0,0,.7)" stroke-width=".8"/>'+
+  '<rect x="-7.5" y="42" width="15" height="50" rx="7.5" fill="none" stroke="rgba(255,255,255,.18)" stroke-width=".5"/>'+
+  '<rect x="-2.8" y="14" width="5.6" height="21" rx="2.8" fill="#161b0f" stroke="rgba(0,0,0,.6)" stroke-width=".4"/>'+
+  '<rect class="lumebar" x="-1.2" y="18" width="2.4" height="14" rx="1.2"/>'+
+  '<rect x="-3.8" y="98" width="7.6" height="24" rx="3.8" fill="#161b0f" stroke="rgba(0,0,0,.6)" stroke-width=".4"/>'+
+  '<rect class="lumebar" x="-1.6" y="102" width="3.2" height="16" rx="1.6"/>'+
+  '<line x1="0" y1="13" x2="0" y2="123" stroke="#0e1209" stroke-width=".5"/>'+
+  '<line x1="0" y1="43.5" x2="0" y2="90.5" stroke="#ff4d2e" stroke-width="1.1"/>';
+}
+// hinge: tongue under the lid, axle with two knuckles, dimple
+function hingeArt(){
+  return '<rect x="-20" y="124" width="40" height="18" rx="2" fill="#4f6038" stroke="'+INK+'" stroke-width=".6"/>'+
+  '<rect x="-30" y="138" width="60" height="9" rx="4.5" fill="#556745" stroke="'+INK+'" stroke-width=".6"/>'+
+  '<rect x="-31.5" y="132" width="9" height="25" rx="3" fill="#4a5a35" stroke="'+INK+'" stroke-width=".6"/>'+
+  '<rect x="22.5" y="132" width="9" height="25" rx="3" fill="#4a5a35" stroke="'+INK+'" stroke-width=".6"/>'+
+  '<circle cx="0" cy="133" r="3.4" fill="#3c4a2a" stroke="'+INK+'" stroke-width=".5"/>';
+}
+function sceneDial(u){
+  return artDefs(u)+
+  // case body (as wide as the dial plus the scale strip on the left) and the grey rear sight under it
+  '<rect x="-20" y="258" width="40" height="26" rx="3" fill="#6c7074" stroke="#2a2d30" stroke-width=".6"/>'+
+  '<rect x="-17" y="262" width="34" height="9" rx="2" fill="#585c60"/>'+
+  '<path d="M-50 149H44L52 158V254Q52 268 38 268H-45Q-59 268 -59 254V160Q-59 149 -50 149Z" fill="url(#cg'+u+')" stroke="'+INK+'" stroke-width=".9"/>'+
+  '<path d="M-48 151H42" stroke="rgba(255,255,255,.14)" stroke-width=".6" fill="none"/>'+
+  ruler(-58,152,26,110,'1:50000','2000',u)+
+  '<circle cx="0" cy="213" r="53" fill="#10150a"/>'+
+  hingeArt()+lidArt(u);
+}
+function sceneSight(u){
+  return artDefs(u)+
+  '<rect x="-60" y="112" width="120" height="94" rx="15" fill="url(#cg'+u+')" stroke="'+INK+'" stroke-width=".9"/>'+
+  '<rect x="-58.5" y="113.5" width="117" height="91" rx="13.5" fill="none" stroke="rgba(255,255,255,.14)" stroke-width=".6"/>'+
+  '<g fill="#2f3b1f" stroke="'+INK+'" stroke-width=".5"><circle cx="-48" cy="193" r="2.8"/><circle cx="48" cy="193" r="2.8"/></g>'+
+  '<path d="M-49.4 193h2.8M46.6 193h2.8" stroke="'+INK+'" stroke-width=".6"/>'+
+  lidArt(u)+
+  // black rubber eyecup of the rear sight, much wider than the lens glass
+  '<rect x="-63" y="91" width="126" height="94" rx="46" ry="44" fill="url(#rb'+u+')" stroke="#000" stroke-width=".6"/>'+
+  '<path d="M-38 104Q-20 96 6 96" stroke="rgba(255,255,255,.1)" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+}
+$('sceneS').innerHTML=sceneSight('s');
+$('sceneD').innerHTML=sceneDial('d');
 
 /* ---------- canvases ---------- */
 var DPR=Math.min(window.devicePixelRatio||1,3);
 var lens=$('lens'),lctx=lens.getContext('2d');
 var dial=$('dial'),dctx=dial.getContext('2d');
 function fit(c){
-  var w=c.clientWidth;if(!w)return false;
+  var w=c.getBoundingClientRect().width;if(!w)return false;   // follows the zoom transform so the canvas stays sharp
   var px=Math.round(w*DPR);
   if(c.width!==px||c.height!==px){c.width=px;c.height=px;}
   return true;
 }
 var RED='#c1272d',BLK='#121512';
+function pal(){RED=S.night?'#f2f2f2':'#c1272d';BLK=S.night?'#a0a0a0':'#121512';}
 
 function lensMarker(ctx,cx,cy,rg,ppd,h,angle,color,shape){
   var dx=sdiff(angle,h)*ppd;
@@ -479,13 +590,14 @@ function drawLens(h){
   ctx.clearRect(0,0,W,W);
   // rubber eyepiece
   var rub=ctx.createRadialGradient(cx,cy,rg,cx,cy,r);
-  rub.addColorStop(0,'#1a1d1a');rub.addColorStop(.55,'#070807');rub.addColorStop(1,'#232723');
+  rub.addColorStop(0,'#2b2f2b');rub.addColorStop(.5,'#0b0c0b');rub.addColorStop(1,'#2d312d');
   ctx.beginPath();ctx.arc(cx,cy,r-DPR,0,7);ctx.fillStyle=rub;ctx.fill();
   ctx.save();
   ctx.beginPath();ctx.arc(cx,cy,rg,0,7);ctx.clip();
   // pale card seen through the glass
   var gl=ctx.createLinearGradient(0,cy-rg,0,cy+rg);
-  gl.addColorStop(0,'#dfe6d8');gl.addColorStop(.5,'#f2f5ee');gl.addColorStop(1,'#d5dccd');
+  if(S.night){gl.addColorStop(0,'#2c2c2c');gl.addColorStop(.5,'#1c1c1c');gl.addColorStop(1,'#2c2c2c');}
+  else{gl.addColorStop(0,'#dfe6d8');gl.addColorStop(.5,'#f2f5ee');gl.addColorStop(1,'#d5dccd');}
   ctx.fillStyle=gl;ctx.fillRect(cx-rg,cy-rg,rg*2,rg*2);
 
   // degrees (red) – magnified window of 22 degrees
@@ -525,19 +637,19 @@ function drawLens(h){
 
   // markers
   var showTarget=S.target!=null&&!(S.practice.on&&S.practice.result==null);
-  if(showTarget)lensMarker(ctx,cx,cy,rg,ppd,h,S.target,'#e08a00','tri');
-  if(S.locked!=null)lensMarker(ctx,cx,cy,rg,ppd,h,S.locked,'#2f8f2f','dia');
+  if(showTarget)lensMarker(ctx,cx,cy,rg,ppd,h,S.target,S.night?'#ffffff':'#e08a00','tri');
+  if(S.locked!=null)lensMarker(ctx,cx,cy,rg,ppd,h,S.locked,S.night?'#9a9a9a':'#2f8f2f','dia');
 
   // glass shading
   var sh=ctx.createRadialGradient(cx,cy,rg*.55,cx,cy,rg);
   sh.addColorStop(0,'rgba(0,0,0,0)');sh.addColorStop(1,'rgba(0,0,0,.34)');
   ctx.fillStyle=sh;ctx.fillRect(cx-rg,cy-rg,rg*2,rg*2);
   var hl=ctx.createLinearGradient(cx-rg,cy-rg,cx+rg*.2,cy);
-  hl.addColorStop(0,'rgba(255,255,255,.32)');hl.addColorStop(1,'rgba(255,255,255,0)');
+  hl.addColorStop(0,S.night?'rgba(255,255,255,.07)':'rgba(255,255,255,.32)');hl.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=hl;ctx.beginPath();ctx.ellipse(cx-rg*.2,cy-rg*.55,rg*.8,rg*.3,-.35,0,7);ctx.fill();
   ctx.restore();
   // hairline through the whole lens
-  ctx.strokeStyle='#ff4d2e';ctx.lineWidth=2*DPR;ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx,cy+rg*.95);ctx.stroke();
+  ctx.strokeStyle='#ff4d2e';ctx.lineWidth=2*DPR;ctx.beginPath();ctx.moveTo(cx,cy-rg*.97);ctx.lineTo(cx,cy+rg*.95);ctx.stroke();
   ctx.beginPath();ctx.arc(cx,cy,rg,0,7);ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=2*DPR;ctx.stroke();
 }
 
@@ -546,13 +658,22 @@ function drawDial(h){
   var W=dial.width,ctx=dctx,r=W/2,i,a;
   ctx.clearRect(0,0,W,W);
   ctx.save();ctx.translate(r,r);
-  // bezel
-  ctx.beginPath();ctx.arc(0,0,r-DPR,0,7);ctx.fillStyle='#0a0c0a';ctx.fill();
-  ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=DPR;
-  for(a=0;a<360;a+=3){ctx.save();ctx.rotate(a*RAD);ctx.beginPath();ctx.moveTo(0,-r+DPR);ctx.lineTo(0,-r*.965);ctx.stroke();ctx.restore();}
-  var rf=r*.93;
+  // click bezel: 120 clicks of 3 degrees, turns counter-clockwise as the set bearing grows
+  var rf=r*.87,lumC=S.night?'#ffffff':'#c9e87a';   // black knurled bezel is ~13% of the radius, as on the real compass
+  var bg=ctx.createRadialGradient(0,0,rf,0,0,r);bg.addColorStop(0,'#050605');bg.addColorStop(1,'#1c1f1c');
+  ctx.beginPath();ctx.arc(0,0,r-DPR,0,7);ctx.fillStyle=bg;ctx.fill();
+  ctx.save();ctx.rotate(-S.bezel*3*RAD);
+  for(a=0;a<360;a+=3){
+    var c30=a%30===0,c15=a%15===0;
+    ctx.strokeStyle=S.night?(c30?'rgba(255,255,255,.75)':'rgba(255,255,255,.4)'):(c30?'rgba(255,255,255,.55)':'rgba(255,255,255,.25)');
+    ctx.lineWidth=(c30?2:1)*DPR;
+    ctx.save();ctx.rotate(a*RAD);ctx.beginPath();ctx.moveTo(0,-r+DPR);ctx.lineTo(0,-r*(c30?.915:(c15?.935:.955)));ctx.stroke();ctx.restore();
+  }
+  ctx.restore();
   ctx.beginPath();ctx.arc(0,0,rf,0,7);
-  var fg=ctx.createRadialGradient(0,-rf*.35,rf*.1,0,0,rf);fg.addColorStop(0,'#f3f6ee');fg.addColorStop(1,'#d6dcce');
+  var fg=ctx.createRadialGradient(0,-rf*.35,rf*.1,0,0,rf);
+  if(S.night){fg.addColorStop(0,'#242424');fg.addColorStop(1,'#141414');}
+  else{fg.addColorStop(0,'#f3f6ee');fg.addColorStop(1,'#d6dcce');}
   ctx.fillStyle=fg;ctx.fill();
 
   ctx.save();ctx.rotate(-h*RAD);
@@ -581,7 +702,7 @@ function drawDial(h){
     }
     ctx.restore();
   }
-  ctx.strokeStyle='rgba(18,21,18,.5)';ctx.lineWidth=DPR;
+  ctx.strokeStyle=S.night?'rgba(190,190,190,.45)':'rgba(18,21,18,.5)';ctx.lineWidth=DPR;
   ctx.beginPath();ctx.arc(0,0,rf*.97,0,7);ctx.stroke();
   ctx.beginPath();ctx.arc(0,0,rf*.72,0,7);ctx.stroke();
   // markers on the card
@@ -593,13 +714,13 @@ function drawDial(h){
     else{ctx.moveTo(0,-rf*.995);ctx.lineTo(s,-rf*.945);ctx.lineTo(0,-rf*.895);ctx.lineTo(-s,-rf*.945);}
     ctx.closePath();ctx.fill();ctx.restore();
   }
-  if(showTarget)cardMark(S.target,'#e08a00',true);
-  if(S.locked!=null)cardMark(S.locked,'#2f8f2f',false);
+  if(showTarget)cardMark(S.target,S.night?'#ffffff':'#e08a00',true);
+  if(S.locked!=null)cardMark(S.locked,S.night?'#9a9a9a':'#2f8f2f',false);
   // E and W luminous plates (kept upright so they stay readable)
-  [[90,'E'],[270,'W']].forEach(function(p){
+  (S.night?[]:[[90,'E'],[270,'W']]).forEach(function(p){   // at night the plates are drawn by drawLume()
     var ang=(p[0]-0)*RAD,px=Math.sin(ang)*rf*.36,py=-Math.cos(ang)*rf*.36;
     ctx.save();ctx.translate(px,py);ctx.rotate(h*RAD);
-    ctx.fillStyle='#d9e79c';ctx.strokeStyle='#8a9455';ctx.lineWidth=DPR;
+    ctx.fillStyle=S.night?'#d0d0d0':'#d9e79c';ctx.strokeStyle=S.night?'#808080':'#8a9455';ctx.lineWidth=DPR;
     var w=rf*.2,hh=rf*.15;
     ctx.beginPath();ctx.rect(-w/2,-hh/2,w,hh);ctx.fill();ctx.stroke();
     ctx.fillStyle='#10140c';ctx.font='700 '+Math.round(rf*.13)+'px "Chakra Petch",sans-serif';
@@ -607,19 +728,78 @@ function drawDial(h){
     ctx.restore();
   });
   // north arrow and tail
-  ctx.fillStyle='#8d948a';ctx.fillRect(-rf*.012,0,rf*.024,rf*.3);
-  ctx.fillStyle='#111';ctx.beginPath();ctx.moveTo(0,-rf*.5);ctx.lineTo(rf*.085,-rf*.2);ctx.lineTo(-rf*.085,-rf*.2);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#c9e87a';ctx.lineWidth=3*DPR;ctx.beginPath();ctx.moveTo(0,-rf*.44);ctx.lineTo(0,-rf*.26);ctx.stroke();
+  ctx.fillStyle=S.night?'#6a6a6a':'#8d948a';ctx.fillRect(-rf*.012,0,rf*.024,rf*.3);
+  ctx.fillStyle=S.night?'#e4e4e4':'#111';ctx.beginPath();ctx.moveTo(0,-rf*.5);ctx.lineTo(rf*.085,-rf*.2);ctx.lineTo(-rf*.085,-rf*.2);ctx.closePath();ctx.fill();
+  if(!S.night){ctx.strokeStyle='#c9e87a';ctx.lineWidth=3*DPR;ctx.beginPath();ctx.moveTo(0,-rf*.44);ctx.lineTo(0,-rf*.26);ctx.stroke();}
   ctx.restore();
+  if(!S.night){
+    // luminous line of the bezel: ring bar, line across the glass and a dot at its end
+    ctx.save();ctx.rotate(-S.bezel*3*RAD);
+    ctx.fillStyle=lumC;ctx.fillRect(-2.6*DPR,-r+DPR,5.2*DPR,r-rf+DPR*.5);
+    ctx.strokeStyle=lumC;ctx.lineWidth=2.2*DPR;ctx.globalAlpha=.8;
+    ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.74);ctx.stroke();ctx.globalAlpha=1;
+    ctx.beginPath();ctx.arc(0,-rf*.74,3.6*DPR,0,7);ctx.fill();
+    ctx.restore();
+  }
   // pivot
   var pg=ctx.createRadialGradient(-rf*.02,-rf*.02,rf*.01,0,0,rf*.07);pg.addColorStop(0,'#fafafa');pg.addColorStop(1,'#7d857b');
   ctx.beginPath();ctx.arc(0,0,rf*.07,0,7);ctx.fillStyle=pg;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=DPR;ctx.stroke();
   // fixed index on the glass: luminous bar and hairline
-  ctx.fillStyle='#b8f26a';ctx.fillRect(-1.6*DPR,-rf,3.2*DPR,rf*.13);
+  if(!S.night){ctx.fillStyle='#b8f26a';ctx.fillRect(-1.6*DPR,-rf,3.2*DPR,rf*.13);}
   ctx.strokeStyle='#ff4d2e';ctx.lineWidth=1.6*DPR;ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.55);ctx.stroke();
   // glass shine
-  var sg=ctx.createLinearGradient(-rf,-rf,rf*.3,rf*.1);sg.addColorStop(0,'rgba(255,255,255,.28)');sg.addColorStop(1,'rgba(255,255,255,0)');
+  var sg=ctx.createLinearGradient(-rf,-rf,rf*.3,rf*.1);sg.addColorStop(0,S.night?'rgba(255,255,255,.05)':'rgba(255,255,255,.28)');sg.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=sg;ctx.beginPath();ctx.arc(0,0,rf,0,7);ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- night luminous marks: green glow drawn above the red filter ---------- */
+var lumeCv=$('lume'),lumeX=lumeCv.getContext('2d');
+function drawLume(h){
+  var W=window.innerWidth,H=window.innerHeight,px=Math.round(W*DPR),py=Math.round(H*DPR),ctx=lumeX;
+  if(lumeCv.width!==px||lumeCv.height!==py){lumeCv.width=px;lumeCv.height=py;}
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,px,py);
+  if(!S.night||!S.started||h==null)return;
+  if(!$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden)return;   // keep the glow off the sheets
+  ctx.scale(DPR,DPR);
+  var vr=$('view').getBoundingClientRect();ctx.beginPath();ctx.rect(vr.left,vr.top,vr.width,vr.height);ctx.clip();   // zoomed art must not glow over the header or panel
+  var G='#8dff6a',a=.55+.45*S.bright/100;
+  ctx.globalAlpha=a;ctx.fillStyle=G;ctx.strokeStyle=G;ctx.shadowColor='rgba(90,255,70,.95)';ctx.shadowBlur=12;
+  function dot(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();}
+  // dots above and below the front-sight slot
+  // lume bars in the windows above and below the slot (lid units, see lidArt)
+  var sc=S.view==='dial'?$('sceneD'):$('sceneS'),sr=sc.getBoundingClientRect(),vb=sc.viewBox.baseVal;
+  if(sr.width){
+    var k=sr.width/vb.width;
+    var X=function(x){return sr.left+(x-vb.x)*k},Y=function(y){return sr.top+(y-vb.y)*k};
+    ctx.lineCap='round';
+    ctx.lineWidth=2.4*k;ctx.beginPath();ctx.moveTo(X(0),Y(19.2));ctx.lineTo(X(0),Y(30.8));ctx.stroke();
+    if(S.view==='dial'){ctx.lineWidth=3.2*k;ctx.beginPath();ctx.moveTo(X(0),Y(103.6));ctx.lineTo(X(0),Y(116.4));ctx.stroke();}   // hidden behind the eyecup in sight view
+    ctx.lineCap='butt';
+  }
+  if(S.view!=='dial')return;
+  var rc=dial.getBoundingClientRect();if(!rc.width)return;
+  var r=rc.width/2,rf=r*.93;
+  ctx.translate(rc.left+r,rc.top+r);
+  // bezel luminous line (ring bar, line across the glass, dot)
+  ctx.save();ctx.rotate(-S.bezel*3*RAD);
+  ctx.fillRect(-2.6,-r+1,5.2,r-rf+.5);
+  ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(0,-rf);ctx.lineTo(0,-rf*.74);ctx.stroke();
+  dot(0,-rf*.74,3.6);
+  ctx.restore();
+  // fixed index bar on the glass
+  ctx.fillRect(-1.6,-rf,3.2,rf*.13);
+  // card: north-arrow stripe and E/W plates turn with the card
+  ctx.save();ctx.rotate(-h*RAD);
+  ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,-rf*.44);ctx.lineTo(0,-rf*.26);ctx.stroke();
+  [[90,'E'],[270,'W']].forEach(function(p){
+    var ang=p[0]*RAD;
+    ctx.save();ctx.translate(Math.sin(ang)*rf*.36,-Math.cos(ang)*rf*.36);ctx.rotate(h*RAD);
+    ctx.fillRect(-rf*.1,-rf*.075,rf*.2,rf*.15);
+    ctx.shadowBlur=0;ctx.fillStyle='#06200a';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.font='700 '+Math.round(rf*.13)+'px "Chakra Petch",sans-serif';ctx.fillText(p[1],0,1);
+    ctx.restore();
+  });
   ctx.restore();
 }
 
@@ -642,11 +822,13 @@ function updateGuide(h){
     return;
   }
   if(S.target!=null){
-    var d=sdiff(S.target,h);
-    if(Math.abs(d)<=1.5)setGuide('hit','ตรงเป้า '+fmtPrimary(S.target));
+    var d=sdiff(S.target,h),hit=Math.abs(d)<=1.5;
+    if(hit!==S.hit){S.hit=hit;if(hit)buzz([25,50,25]);}   // eyes-free: phone buzzes when the north arrow meets the bezel line
+    if(hit)setGuide('hit','ตรงเป้า '+fmtPrimary(S.target));
     else setGuide('',(d>0?'หันขวา ':'หันซ้าย ')+fmtAmount(d)+'<small>เป้าหมาย '+fmtPrimary(S.target)+'</small>');
     return;
   }
+  S.hit=false;
   setGuide('','');
 }
 var cache={big:'',alt:'',name:'',tag:'',cls:''};
@@ -664,7 +846,7 @@ function updateReadout(h){
 }
 
 function frame(now){
-  updateView();
+  pal();updateView();
   var h=liveHeading();
   if(h==null){
     put($('big'),'big','---');put($('alt'),'alt',S.unit==='deg'?'---- มิล':'---');
@@ -672,6 +854,7 @@ function frame(now){
     if(S.view==='sight')drawLens(h);else drawDial(h);
     updateReadout(h);updateGuide(h);
   }
+  drawLume(h);
   refreshStatus(now);
   requestAnimationFrame(frame);
 }
@@ -719,9 +902,11 @@ $('btnTarget').addEventListener('click',function(){
 $('tgtOk').addEventListener('click',function(){
   var v=parseFloat($('tgtInput').value);
   if(isNaN(v)){hide('sheetTarget');return;}
-  S.target=mod(S.unit==='deg'?v:toDeg(v));lastGuide='';updateButtons();hide('sheetTarget');
+  S.target=mod(S.unit==='deg'?v:toDeg(v));
+  S.bezel=((Math.round(S.target/3)%120)+120)%120;updateBezelBar();   // ring follows the typed target
+  lastGuide='';updateButtons();hide('sheetTarget');
 });
-$('tgtClear').addEventListener('click',function(){S.target=null;lastGuide='';updateButtons();hide('sheetTarget');});
+$('tgtClear').addEventListener('click',function(){S.target=null;S.hit=false;lastGuide='';updateButtons();hide('sheetTarget');});
 function syncUnitButtons(){$('uDeg').setAttribute('aria-pressed',S.unit==='deg');$('uMil').setAttribute('aria-pressed',S.unit==='mil');}
 $('btnSet').addEventListener('click',function(){
   $('declInput').value=S.decl;$('smoothInput').value=S.smooth;$('smoothVal').textContent=S.smooth;syncUnitButtons();show('sheetSet');
@@ -732,7 +917,73 @@ $('declInput').addEventListener('input',function(){var v=parseFloat(this.value);
 $('smoothInput').addEventListener('input',function(){S.smooth=+this.value;$('smoothVal').textContent=S.smooth;persist();});
 $('setOk').addEventListener('click',function(){hide('sheetSet');});
 
-applyView();updateButtons();
+/* ---------- click bezel (3 degrees per click, 120 clicks) ---------- */
+var AC=null;
+function clickSound(){
+  if(!S.snd)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended')AC.resume();
+    var o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;
+    o.type='square';o.frequency.value=1700;
+    g.gain.setValueAtTime(.10,t);g.gain.exponentialRampToValueAtTime(.001,t+.03);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+.035);
+  }catch(e){}
+}
+function updateBezelBar(){
+  var d=S.bezel*3,t='คลิก '+S.bezel+'<small>'+d+'°'+(S.unit==='mil'?' · '+Math.round(toMil(d))+' มิล':'')+'</small>';
+  var el=$('bezelTxt');if(el.dataset.k!==t){el.dataset.k=t;el.innerHTML=t;}
+}
+function setBezel(c){
+  c=((Math.round(c)%120)+120)%120;
+  if(c===S.bezel)return;
+  S.bezel=c;buzz(8);clickSound();
+  if(!S.practice.on){S.target=c*3;S.hit=false;lastGuide='';updateButtons();}   // the ring sets the target bearing
+  updateBezelBar();
+}
+$('bzUp').addEventListener('click',function(){setBezel(S.bezel+1);});
+$('bzDown').addEventListener('click',function(){setBezel(S.bezel-1);});
+var drag=null;
+function ringAngle(e){
+  var rc=dial.getBoundingClientRect(),dx=e.clientX-(rc.left+rc.width/2),dy=e.clientY-(rc.top+rc.height/2);
+  return {a:Math.atan2(dx,-dy)/RAD,rr:Math.hypot(dx,dy)/(rc.width/2)};
+}
+dial.addEventListener('pointerdown',function(e){
+  var p=ringAngle(e);
+  if(p.rr<.8)return;                       // only the outer ring turns
+  drag={last:p.a,phi:-S.bezel*3};          // phi = screen angle of the ring line (clockwise from top)
+  try{dial.setPointerCapture(e.pointerId);}catch(x){}
+  e.preventDefault();
+});
+dial.addEventListener('pointermove',function(e){
+  if(!drag)return;
+  var p=ringAngle(e);
+  drag.phi+=sdiff(p.a,drag.last);drag.last=p.a;
+  setBezel(mod(-drag.phi)/3);
+});
+function endDrag(){drag=null;}
+dial.addEventListener('pointerup',endDrag);
+dial.addEventListener('pointercancel',endDrag);
+
+/* ---------- night mode ---------- */
+function applyNight(){
+  document.body.classList.toggle('night',S.night);
+  $('dim').style.opacity=S.night?String(1-S.bright/100):'0';
+  $('btnNight').setAttribute('aria-pressed',S.night);
+  $('mDay').setAttribute('aria-pressed',!S.night);$('mNight').setAttribute('aria-pressed',S.night);
+  var m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',S.night?'#000000':'#0b100c');
+}
+function setNight(v){S.night=v;persist();applyNight();}
+$('btnNight').addEventListener('click',function(){setNight(!S.night);});
+$('mDay').addEventListener('click',function(){setNight(false);});
+$('mNight').addEventListener('click',function(){setNight(true);});
+$('brightInput').addEventListener('input',function(){S.bright=+this.value;$('brightVal').textContent=S.bright;persist();applyNight();});
+function syncSnd(){$('sndOn').setAttribute('aria-pressed',S.snd);$('sndOff').setAttribute('aria-pressed',!S.snd);}
+$('sndOn').addEventListener('click',function(){S.snd=true;syncSnd();persist();clickSound();});
+$('sndOff').addEventListener('click',function(){S.snd=false;syncSnd();persist();});
+$('brightInput').value=S.bright;$('brightVal').textContent=S.bright;syncSnd();
+
+applyNight();updateBezelBar();applyView();updateButtons();
 requestAnimationFrame(frame);
 })();
 </script>
