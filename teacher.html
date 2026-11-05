@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>แผงควบคุมครู · เข็มทิศเลนเซติก</title>
+<style>
+:root{--ink:#0b0f0c;--card:#151c17;--line:#2a362d;--tx:#e8efe9;--mut:#9db0a2;--ok:#b9f26a;--warn:#ffb020;--bad:#ff5a4d}
+*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--tx);font:16px/1.5 Sarabun,system-ui,sans-serif;padding:16px;max-width:520px;margin:auto}
+h1{font-size:20px;margin:4px 0 12px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}
+.state{font-size:28px;font-weight:700;text-align:center;padding:10px 0}.state.open{color:var(--ok)}.state.closed{color:var(--bad)}.state.none{color:var(--mut)}
+.row{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;min-height:48px;border-radius:12px;border:1px solid var(--line);background:#1d2720;color:var(--tx);padding:0 14px;flex:1}
+button.p{background:var(--ok);color:#10200a;font-weight:700;border:0}button.d{background:var(--bad);color:#fff;border:0;font-weight:700}
+button[aria-pressed=true]{outline:2px solid var(--ok)}small,.m{color:var(--mut)}
+#qr{background:#fff;padding:10px;border-radius:10px;display:grid;place-items:center;margin:8px auto;max-width:280px}
+#qr img{width:100%;height:auto;display:block}input{width:100%;font:inherit;background:var(--ink);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:10px}
+</style></head><body>
+<h1>แผงควบคุมครู</h1>
+<div class="card"><div id="st" class="state none">ยังไม่ได้ส่งคำสั่ง</div><div id="msg" class="m" style="text-align:center"></div></div>
+<div class="card">
+  <b>เปิดให้ใช้งานกี่นาที</b>
+  <div class="row" id="mins" style="margin:8px 0">
+    <button data-m="10">10</button><button data-m="20">20</button><button data-m="30" aria-pressed="true">30</button><button data-m="60">60</button>
+  </div>
+  <div class="row"><button class="p" id="open">เปิดทั้งห้อง</button><button class="d" id="close">ปิดทันที</button></div>
+  <div class="row" style="margin-top:8px"><button id="plus5">+5 นาที</button><button id="minus5">−5 นาที</button></div>
+</div>
+<div class="card">
+  <b>QR ให้นักเรียนสแกน (ใช้ครั้งเดียว ใช้ได้ตลอด)</b>
+  <div id="qr"></div>
+  <input id="link" readonly>
+  <p><small>นักเรียนสแกนแล้วเปิดค้างไว้ เมื่อกด "เปิดทั้งห้อง" แอพของทุกคนเปิดพร้อมกัน ใครที่มีลิงก์นี้ส่งคำสั่งได้ ไม่ควรแชร์ลิงก์นี้ต่อภายนอก
+  ถ้าอยากเปลี่ยนช่อง (เช่นหลุดไปแล้ว) กดปุ่มด้านล่างแล้วพิมพ์ QR ใหม่</small></p>
+  <button id="newch">สร้างช่องใหม่</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function(){
+function $(i){return document.getElementById(i);}
+function rnd(){var a=new Uint8Array(12),s='',c='abcdefghjkmnpqrstuvwxyz23456789',i;crypto.getRandomValues(a);for(i=0;i<12;i++)s+=c[a[i]%c.length];return s;}
+var ch='';try{ch=localStorage.getItem('lc_ch')||'';}catch(e){}
+if(!/^[A-Za-z0-9_-]{8,64}$/.test(ch)){ch='lc'+rnd();try{localStorage.setItem('lc_ch',ch);}catch(e){}}
+var mins=30,endMs=0;
+function link(){return location.href.replace(/teacher\.html.*$/,'')+'#c='+ch;}
+function drawQr(){
+  var u=link();$('link').value=u;
+  if(window.qrcode){var q=qrcode(0,'M');q.addData(u);q.make();$('qr').innerHTML=q.createImgTag(8,8);}
+  else $('qr').textContent='โหลดตัวสร้าง QR ไม่ได้ (ต้องต่ออินเทอร์เน็ต) คัดลอกลิงก์ด้านล่างไปสร้าง QR เอง';
+}
+function show(cls,t,m){$('st').className='state '+cls;$('st').textContent=t;$('msg').textContent=m||'';}
+function send(obj,okText){
+  $('msg').textContent='กำลังส่ง…';
+  return fetch('https://ntfy.sh/'+ch,{method:'POST',body:JSON.stringify(obj)}).then(function(r){
+    if(!r.ok)throw new Error(r.status);okText();
+  }).catch(function(){show('none','ส่งไม่สำเร็จ','เช็กอินเทอร์เน็ตแล้วลองใหม่');});
+}
+function hh(ms){var d=new Date(ms);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+function sendOpen(){send({a:'open',e:endMs},function(){show('open','เปิดอยู่','ปิดอัตโนมัติเวลา '+hh(endMs)+' น.');});}
+$('mins').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;mins=+b.getAttribute('data-m');
+  [].forEach.call($('mins').children,function(x){x.setAttribute('aria-pressed',x===b);});});
+$('open').onclick=function(){endMs=Date.now()+mins*60000;sendOpen();};
+$('close').onclick=function(){endMs=0;send({a:'close'},function(){show('closed','ปิดแล้ว','แอพของนักเรียนทุกคนถูกปิด');});};
+function adj(d){if(!endMs||endMs<Date.now()){show('none','ยังไม่ได้เปิด','กด "เปิดทั้งห้อง" ก่อน');return;}endMs+=d*60000;sendOpen();}
+$('plus5').onclick=function(){adj(5);};$('minus5').onclick=function(){adj(-5);};
+$('newch').onclick=function(){if(!confirm('สร้างช่องใหม่? QR เดิมจะใช้ไม่ได้อีก'))return;ch='lc'+rnd();try{localStorage.setItem('lc_ch',ch);}catch(e){}endMs=0;show('none','ยังไม่ได้ส่งคำสั่ง','');drawQr();};
+drawQr();window.addEventListener('load',drawQr);
+})();
+</script></body></html>

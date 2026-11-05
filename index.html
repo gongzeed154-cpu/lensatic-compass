@@ -1257,7 +1257,28 @@ var W=null;
   var h=location.hash||'',a=/[#&?]s=(\d{9,11})(?!\d)/.exec(h),b=/[#&?]e=(\d{9,11})(?!\d)/.exec(h);
   if(a&&b&&+b[1]>+a[1]&&+b[1]-+a[1]<=86400)W={s:+a[1]*1000,e:+b[1]*1000};
 })();
+/* live teacher control: a link ending in #c=<channel> listens to open/close messages the teacher sends from teacher.html
+   through a public relay (ntfy.sh). Until the teacher opens it the app stays locked. */
+var LIVE=/[#&?]c=([A-Za-z0-9_-]{8,64})/.exec(location.hash||'');LIVE=LIVE&&!W?LIVE[1]:'';
+if(LIVE)W={s:Infinity,e:0,wait:true,live:true};
 if(W)$('stTimer').hidden=true;
+function onLive(m){
+  var d;try{d=JSON.parse(m);}catch(e){return;}
+  if(!d||(d.a!=='open'&&d.a!=='close'))return;
+  var now=Date.now();
+  if(d.a==='open'){
+    if(!(+d.e>now)){if(!W.wait)W={s:0,e:now,live:true};return;}   // expired: ignore while still waiting
+    if(S.closed){location.reload();return;}                      // camera was stopped: start fresh
+    W={s:now,e:+d.e,live:true};
+    if(T.state==='run'){T.left=W.e-now;T.t0=now;}                  // extension or shortening reaches running timers
+  }else W={s:0,e:now,live:true};
+  gateCheck();
+}
+function liveConnect(){
+  if(!LIVE||!window.EventSource)return;
+  var es=new EventSource('https://ntfy.sh/'+LIVE+'/sse?since=all');
+  es.onmessage=function(ev){try{onLive(JSON.parse(ev.data).message);}catch(e){}};
+}
 function hhmm(ms){
   var d=new Date(ms),n=new Date(),t=pad(d.getHours(),2)+':'+pad(d.getMinutes(),2);
   if(d.toDateString()!==n.toDateString())t=d.getDate()+'/'+(d.getMonth()+1)+' '+t;
@@ -1283,6 +1304,7 @@ function closeApp(){
 function gateCheck(){
   if(!W)return;
   var now=Date.now();
+  if(W.wait){showGate('รอครูเปิดใช้งาน','','เปิดหน้านี้ค้างไว้ เมื่อครูกดเปิด แอพจะเปิดให้เอง');return;}
   if(now<W.s){
     showGate('ยังไม่ถึงเวลาเปิดใช้งาน',clockH(Math.ceil((W.s-now)/1000)),'ครูเปิดให้ใช้งานเวลา '+hhmm(W.s)+' น. รอที่หน้านี้ แอพจะเปิดให้เอง');
   }else if(now>=W.e){
@@ -1300,7 +1322,7 @@ function gateCheck(){
 $('gate').addEventListener('click',ackAlarm);
 var hm=/[#&?]t=(\d{1,3})(?!\d)/.exec(location.hash||'');
 if(!W&&hm&&+hm[1]>=1&&+hm[1]<=180)setAuto(+hm[1]);
-setInterval(function(){timerTick();gateCheck();},200);gateCheck();
+setInterval(function(){timerTick();gateCheck();},200);gateCheck();liveConnect();
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.started)wake();});
 renderTimer();
 
