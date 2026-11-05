@@ -12,7 +12,7 @@ main{max-width:520px;margin:0 auto;display:grid;gap:16px}
 h1{margin:0;font-size:26px;color:var(--lum)}
 p{margin:0;color:var(--mute)}
 label{font-size:14px;color:var(--mute)}
-input[type=url],input[type=text]{width:100%;min-height:48px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--txt);padding:0 12px;font-size:16px}
+input[type=url],input[type=text],input[type=number],input[type=datetime-local]{width:100%;min-height:48px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--txt);padding:0 12px;font-size:16px}
 .row{display:flex;gap:8px;flex-wrap:wrap}
 button{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--txt);font-weight:700;font-size:16px;padding:0 16px;cursor:pointer}
 button.primary{background:var(--lum);color:#10200a;border-color:var(--lum)}
@@ -30,6 +30,15 @@ canvas{max-width:100%;height:auto;border-radius:8px;background:#fff}
     <input id="url" type="url" inputmode="url" placeholder="https://ชื่อของคุณ.netlify.app">
   </div>
   <div class="field">
+    <label for="wstart">เวลาเปิดให้ใช้ (ไม่ต้องใส่ก็ได้) ถ้าใส่ ทุกเครื่องจะเปิดและปิดพร้อมกันตามเวลานี้</label>
+    <input id="wstart" type="datetime-local">
+  </div>
+  <div class="field">
+    <label for="tmin">ใช้งานได้กี่นาที (ไม่ต้องใส่ก็ได้)</label>
+    <input id="tmin" type="number" inputmode="numeric" min="1" max="180" placeholder="เช่น 30">
+    <small>ใส่เฉพาะนาที = นักเรียนแต่ละคนได้เวลาเท่ากัน นับจากตอนกดเริ่มใช้งาน · ใส่ทั้งเวลาเปิดและนาที = ทุกเครื่องปิดพร้อมกัน ต้องทำ QR ใหม่ทุกครั้งที่เปลี่ยนเวลา</small>
+  </div>
+  <div class="field">
     <label for="cap">ข้อความใต้ QR</label>
     <input id="cap" type="text" value="สแกนเพื่อเปิดเข็มทิศเลนเซติก">
   </div>
@@ -39,6 +48,8 @@ canvas{max-width:100%;height:auto;border-radius:8px;background:#fff}
   </div>
   <div id="err" role="status"></div>
   <canvas id="cv" width="10" height="10" hidden></canvas>
+  <p id="finalUrl" style="word-break:break-all;user-select:all"></p>
+  <p id="winInfo"></p>
 </main>
 <script>
 //---------------------------------------------------------------------
@@ -2347,6 +2358,20 @@ var cv=$('cv'),ctx=cv.getContext('2d');
 function draw(){
   var url=$('url').value.trim(),err=$('err');err.textContent='';
   if(!/^https:\/\/.+/i.test(url)){err.textContent='ใส่ลิงก์ที่ขึ้นต้นด้วย https:// (กล้องใช้ได้เฉพาะ https)';return;}
+  var mins=parseInt($('tmin').value,10),st=$('wstart').value,info='';
+  if(st){
+    if(!(mins>0&&mins<=180)){err.textContent='ใส่จำนวนนาทีที่ใช้งานได้ (1-180) ด้วย';return;}
+    var sMs=new Date(st).getTime();
+    if(isNaN(sMs)){err.textContent='เวลาเปิดไม่ถูกต้อง';return;}
+    var s0=Math.round(sMs/1000),e0=s0+mins*60;
+    url=url.replace(/#.*$/,'')+'#s='+s0+'&e='+e0;
+    var f=function(sec){return new Date(sec*1000).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});};
+    info='ทุกเครื่องที่สแกนจะใช้ได้เวลา '+f(s0)+' และถูกปิดเวลา '+f(e0)+' น.';
+  }else if(mins>0&&mins<=180){
+    url=url.replace(/#.*$/,'')+'#t='+mins;
+    info='นักเรียนแต่ละคนได้เวลา '+mins+' นาที นับจากตอนกดเริ่มใช้งาน';
+  }
+  $('finalUrl').textContent=url;$('winInfo').textContent=info;
   var qr;
   try{qr=qrcode(0,'M');qr.addData(url);qr.make();}catch(e){err.textContent='ลิงก์ยาวเกินไป';return;}
   var n=qr.getModuleCount(),cell=Math.max(4,Math.floor(720/(n+8))),quiet=4*cell,size=n*cell+quiet*2;

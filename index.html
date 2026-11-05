@@ -118,9 +118,15 @@ body.night #lume{display:block}
 #start p{margin:0;color:var(--mute);max-width:34em}
 #start ol{margin:0;padding-left:1.2em;display:grid;gap:8px;max-width:34em}
 #start .note{font-size:14px;border-left:3px solid var(--amber);padding-left:12px;max-width:34em}
-#start .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#start .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;position:sticky;bottom:0;background:var(--ink);padding:8px 0}
 #startErr{color:var(--amber);font-size:14px;min-height:1.2em;max-width:34em}
 .link{background:none;border:0;color:var(--mute);text-decoration:underline;min-height:44px}
+/* teacher window lock: sits under the night-mode filter (#shade is 9999) so it turns red too */
+#gate{position:fixed;inset:0;z-index:9000;background:var(--ink);display:grid;align-content:center;justify-items:center;text-align:center;gap:14px;
+  padding:max(24px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-left,0px)) max(24px,env(safe-area-inset-bottom,0px))}
+#gate h1{margin:0;font-family:var(--display);font-size:28px;color:var(--amber);line-height:1.2}
+#gateBig{font-family:var(--display);font-weight:700;font-size:64px;line-height:1;font-variant-numeric:tabular-nums;color:var(--lum)}
+#gate p{margin:0;color:var(--mute);max-width:30em}
 
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#121a13;border-top:1px solid var(--line);
   border-radius:18px 18px 0 0;padding:16px max(16px,env(safe-area-inset-left,0px)) calc(env(safe-area-inset-bottom,0px) + 16px);
@@ -230,11 +236,22 @@ body.night #shade,body.night #dim{display:block}
     <li><b>กลางคืน:</b> กดปุ่มพระจันทร์ให้จอเป็นสีแดง วางมือถือราบ แล้ว<b>หมุนวงแหวนรอบหน้าปัด</b>ทีละคลิก (3° ต่อคลิก) ให้ครบ จากนั้นหันตัวจนลูกศรเหนือทับเส้นเรืองแสงบนวงแหวน</li>
   </ol>
   <div class="note">ถอดเคสที่มีแม่เหล็ก อยู่ห่างโลหะ สายไฟ รถยนต์ ถ้าค่าเพี้ยน ให้โบกมือถือเป็นเลข 8 ในอากาศสองสามครั้งเพื่อปรับเทียบ</div>
+  <div class="note" id="stWin" hidden></div>
+  <div class="field" id="stTimer">
+    <label>ตั้งเวลาใช้งาน (ไม่บังคับ) เวลาเริ่มนับเมื่อกดเริ่มใช้งาน</label>
+    <div class="chips" id="stPresets">
+      <button data-m="0" aria-pressed="true">ไม่ตั้ง</button>
+      <button data-m="5" aria-pressed="false">5 นาที</button>
+      <button data-m="10" aria-pressed="false">10 นาที</button>
+      <button data-m="15" aria-pressed="false">15 นาที</button>
+      <button data-m="30" aria-pressed="false">30 นาที</button>
+    </div>
+  </div>
+  <div id="startErr" role="status"></div>
   <div class="row">
     <button class="btn primary" id="btnStart" style="min-width:180px">เริ่มใช้งาน</button>
     <button class="link" id="btnDemo">ลองโหมดจำลอง</button>
   </div>
-  <div id="startErr" role="status"></div>
 </div>
 
 <div class="sheet" id="sheetTarget" hidden>
@@ -330,6 +347,12 @@ body.night #shade,body.night #dim{display:block}
     <small>วงแหวนหมุนทีละ 3° (120 คลิก) มีเสียงและแรงสั่นเบา ๆ ทุกคลิก นับคลิกได้โดยไม่ต้องมองจอ</small>
   </div>
   <button class="btn primary" id="setOk">เสร็จ</button>
+</div>
+
+<div id="gate" hidden>
+  <h1 id="gateTitle"></h1>
+  <div id="gateBig"></div>
+  <p id="gateTxt"></p>
 </div>
 
 <div id="shade"></div>
@@ -479,7 +502,7 @@ function begin(){
         :'เปิดกล้องไม่ได้ ตรวจสอบว่าอนุญาตการใช้กล้องแล้ว');
     }
     if(r[0].status==='rejected'&&r[1].status==='rejected'){err.textContent=msgs.join(' / ');return;}
-    S.started=true;$('start').hidden=true;wake();applyView();
+    S.started=true;$('start').hidden=true;wake();applyView();autoTimer();
     if(msgs.length)setStatus('warn',msgs[0]);
     setTimeout(function(){if(!S.back.has&&!S.demo)enableDemo('ไม่พบข้อมูลเซ็นเซอร์');},2500);
   });
@@ -488,7 +511,7 @@ function enableDemo(why){S.demo=true;$('demoBar').style.display='block';setStatu
 function applyDemo(){var v=+$('demoRange').value;$('demoVal').textContent=v;S.back.set(v);S.top.set(v);}
 $('demoRange').addEventListener('input',applyDemo);
 $('btnStart').addEventListener('click',begin);
-$('btnDemo').addEventListener('click',function(){$('start').hidden=true;S.started=true;enableDemo('');applyView();});
+$('btnDemo').addEventListener('click',function(){$('start').hidden=true;S.started=true;enableDemo('');applyView();autoTimer();});
 
 /* ---------- views ---------- */
 function pickView(){
@@ -1055,7 +1078,7 @@ dial.addEventListener('pointercancel',endDrag);
 
 /* ---------- night mode ---------- */
 // look: 0 day, 1 night (red), 2 pitch dark (only the lume glows)
-function sheetsOpen(){return !$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden||!$('sheetTimer').hidden;}
+function sheetsOpen(){return !$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden||!$('sheetTimer').hidden||!$('gate').hidden;}
 function updateDim(){
   var o='0';
   if(S.night)o=(S.dark&&!sheetsOpen())?'1':String(1-S.bright/100);   // sheets stay readable (red) so settings can be changed
@@ -1197,7 +1220,87 @@ $('tClose').addEventListener('click',function(){hide('sheetTimer');});
 $('tMin').value=Math.floor(T.total/60);$('tSec').value=T.total%60;
 $('tSound').checked=S.tSound;$('tLimit').value=String(S.pLimit);
 T.left=T.total*1000;
-setInterval(timerTick,200);
+/* timer chosen on the start screen: it begins counting when the app starts */
+S.autoMin=0;
+function setAuto(m){
+  S.autoMin=m;
+  var chips=$('stPresets').children,found=false,i,on;
+  for(i=0;i<chips.length;i++){
+    on=+chips[i].getAttribute('data-m')===m;
+    if(on)found=true;
+    chips[i].setAttribute('aria-pressed',on);
+  }
+  if(!found&&m>0){
+    var nb=document.createElement('button');
+    nb.setAttribute('data-m',m);nb.setAttribute('aria-pressed','true');nb.textContent=m+' นาที';
+    $('stPresets').appendChild(nb);
+  }
+  if(m>0){T.mode='down';T.total=m*60;$('tMin').value=m;$('tSec').value=0;persist();renderTimer();}
+}
+function autoTimer(){
+  if(T.state!=='idle')return;
+  if(W){   // teacher window: count down to the shared closing time, not a fixed length
+    unlockAudio();T.mode='down';T.left=Math.max(1,W.e-Date.now());T.t0=Date.now();T.state='run';wake();renderTimer();
+    return;
+  }
+  if(S.autoMin>0){T.mode='down';T.total=S.autoMin*60;timerStart();renderTimer();}
+}
+$('stPresets').addEventListener('click',function(e){
+  var b=e.target.closest?e.target.closest('button'):null;
+  if(b)setAuto(+b.getAttribute('data-m'));
+});
+// a link ending in #t=10 pre-selects 10 minutes (a teacher can put it in the QR code)
+/* teacher window: a link ending in #s=<open>&e=<close> (unix seconds) opens and closes the app for everyone at the same time.
+   Before it opens and after it closes the app is locked. It follows each phone's clock, so it needs no server. */
+var W=null;
+(function(){
+  var h=location.hash||'',a=/[#&?]s=(\d{9,11})(?!\d)/.exec(h),b=/[#&?]e=(\d{9,11})(?!\d)/.exec(h);
+  if(a&&b&&+b[1]>+a[1]&&+b[1]-+a[1]<=86400)W={s:+a[1]*1000,e:+b[1]*1000};
+})();
+if(W)$('stTimer').hidden=true;
+function hhmm(ms){
+  var d=new Date(ms),n=new Date(),t=pad(d.getHours(),2)+':'+pad(d.getMinutes(),2);
+  if(d.toDateString()!==n.toDateString())t=d.getDate()+'/'+(d.getMonth()+1)+' '+t;
+  return t;
+}
+function clockH(sec){
+  sec=Math.max(0,sec);
+  if(sec>=3600)return Math.floor(sec/3600)+':'+pad(Math.floor(sec%3600/60),2)+':'+pad(sec%60,2);
+  return clock(sec);
+}
+var gk='';
+function showGate(title,big,txt){
+  var k=title+'|'+big+'|'+txt;
+  if(k!==gk){gk=k;$('gateTitle').textContent=title;$('gateBig').textContent=big;$('gateBig').hidden=!big;$('gateTxt').textContent=txt;}
+  $('gate').hidden=false;
+}
+function closeApp(){
+  if(S.closed)return;S.closed=true;
+  try{var v=$('cam');if(v.srcObject){v.srcObject.getTracks().forEach(function(t){t.stop();});v.srcObject=null;}}catch(e){}
+  window.removeEventListener('deviceorientationabsolute',onOrient,true);
+  window.removeEventListener('deviceorientation',onOrient,true);
+}
+function gateCheck(){
+  if(!W)return;
+  var now=Date.now();
+  if(now<W.s){
+    showGate('ยังไม่ถึงเวลาเปิดใช้งาน',clockH(Math.ceil((W.s-now)/1000)),'ครูเปิดให้ใช้งานเวลา '+hhmm(W.s)+' น. รอที่หน้านี้ แอพจะเปิดให้เอง');
+  }else if(now>=W.e){
+    closeApp();
+    showGate('ครูปิดการใช้งานแล้ว','','หมดเวลา '+hhmm(W.e)+' น. ขอบคุณที่ร่วมฝึก');
+  }else{
+    $('gate').hidden=true;
+    if(!$('start').hidden){
+      var t='ครูกำหนดเวลาใช้งาน '+hhmm(W.s)+' – '+hhmm(W.e)+' น. เหลืออีก '+clockH(Math.ceil((W.e-now)/1000));
+      if($('stWin').textContent!==t)$('stWin').textContent=t;
+      $('stWin').hidden=false;
+    }else $('stWin').hidden=true;
+  }
+}
+$('gate').addEventListener('click',ackAlarm);
+var hm=/[#&?]t=(\d{1,3})(?!\d)/.exec(location.hash||'');
+if(!W&&hm&&+hm[1]>=1&&+hm[1]<=180)setAuto(+hm[1]);
+setInterval(function(){timerTick();gateCheck();},200);gateCheck();
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.started)wake();});
 renderTimer();
 
