@@ -91,11 +91,26 @@ body.night #lume{display:block}
 .side{text-align:right;min-width:0;display:grid;gap:2px}
 #alt{font-family:var(--display);font-weight:500;font-size:22px;font-variant-numeric:tabular-nums}
 #dirname{font-size:13px;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btns{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
+.btns{display:grid;grid-template-columns:1.2fr 1.1fr .85fr .85fr;gap:8px}
+.btns .btn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
 .btn{min-height:48px;border-radius:12px;border:1px solid var(--line);background:rgba(238,244,230,.06);font-weight:700;font-size:15px;padding:0 8px}
 .btn.primary{background:var(--lum);color:#10200a;border-color:var(--lum)}
 .btn.on{background:var(--amber);color:#2a1a00;border-color:var(--amber)}
 .btn:disabled{opacity:.4}
+#btnTimer{font-variant-numeric:tabular-nums;padding:0 4px}
+#btnTimer.alarm{font-size:13px}
+#btnTimer.run{border-color:var(--lum);color:var(--lum)}
+#btnTimer.alarm{background:#ff4d2e;color:#fff;border-color:#ff4d2e}
+@media (prefers-reduced-motion:no-preference){#btnTimer.alarm{animation:tblink .8s steps(2) infinite}}
+@keyframes tblink{50%{opacity:.55}}
+#tBig{font-family:var(--display);font-weight:700;font-size:56px;line-height:1;text-align:center;font-variant-numeric:tabular-nums;color:var(--lum);padding:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:#0b100c;font-weight:700}
+.chips button[aria-pressed=true]{background:var(--lum);color:#10200a;border-color:var(--lum)}
+.seg button:disabled,.chips button:disabled{opacity:.45}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px}
+.check input{width:22px;height:22px;flex:none}
 
 #start{position:fixed;inset:0;z-index:20;background:var(--ink);display:grid;align-content:center;gap:18px;overflow:auto;
   padding:max(24px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-left,0px)) max(24px,env(safe-area-inset-bottom,0px))}
@@ -113,7 +128,7 @@ body.night #lume{display:block}
 .sheet h2{margin:0;font-family:var(--display);font-size:20px}
 .field{display:grid;gap:6px}
 .field label{font-size:14px;color:var(--mute)}
-.field input[type=number]{min-height:48px;border-radius:10px;border:1px solid var(--line);background:#0b100c;padding:0 12px;font-size:18px;width:100%}
+.field input[type=number],.field select{min-height:48px;border-radius:10px;border:1px solid var(--line);background:#0b100c;padding:0 12px;font-size:18px;width:100%}
 .field small{color:var(--mute);font-size:12px}
 .seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px}
 .seg button{min-height:44px;border-radius:10px;border:1px solid var(--line);background:#0b100c;font-weight:700}
@@ -195,6 +210,7 @@ body.night #shade,body.night #dim{display:block}
       <button class="btn primary" id="btnLock">ล็อกทิศ</button>
       <button class="btn" id="btnTarget">เป้าหมาย</button>
       <button class="btn" id="btnPractice">ฝึก</button>
+      <button class="btn" id="btnTimer">เวลา</button>
     </div>
   </section>
 
@@ -232,6 +248,45 @@ body.night #shade,body.night #dim{display:block}
     <button class="btn" id="tgtClear">ล้างเป้าหมาย</button>
     <button class="btn primary" id="tgtOk">ตกลง</button>
   </div>
+</div>
+
+<div class="sheet" id="sheetTimer" hidden>
+  <h2>จับเวลา</h2>
+  <div class="seg">
+    <button id="tmDown" aria-pressed="true">นับถอยหลัง</button>
+    <button id="tmUp" aria-pressed="false">จับเวลาเดินหน้า</button>
+  </div>
+  <div id="tBig">05:00</div>
+  <div class="field" id="tSetWrap">
+    <label>ตั้งเวลา</label>
+    <div class="chips" id="tPresets">
+      <button data-s="60" aria-pressed="false">1 นาที</button>
+      <button data-s="120" aria-pressed="false">2 นาที</button>
+      <button data-s="300" aria-pressed="true">5 นาที</button>
+      <button data-s="600" aria-pressed="false">10 นาที</button>
+      <button data-s="900" aria-pressed="false">15 นาที</button>
+    </div>
+    <div class="two">
+      <div class="field"><label for="tMin">นาที</label><input id="tMin" type="number" inputmode="numeric" min="0" max="180" value="5"></div>
+      <div class="field"><label for="tSec">วินาที</label><input id="tSec" type="number" inputmode="numeric" min="0" max="59" value="0"></div>
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn" id="tReset">รีเซ็ต</button>
+    <button class="btn primary" id="tStart">เริ่ม</button>
+  </div>
+  <label class="check"><input id="tSound" type="checkbox" checked> เตือนด้วยเสียงและสั่นเมื่อหมดเวลา</label>
+  <div class="field">
+    <label for="tLimit">เวลาต่อข้อในโหมดฝึก</label>
+    <select id="tLimit">
+      <option value="0">ไม่จำกัด</option>
+      <option value="15">15 วินาที</option>
+      <option value="30">30 วินาที</option>
+      <option value="60">60 วินาที</option>
+    </select>
+    <small>ถ้าหมดเวลาก่อนกด "ยืนยันทิศ" ข้อนั้นนับว่าไม่ผ่าน</small>
+  </div>
+  <button class="btn" id="tClose">ปิด</button>
 </div>
 
 <div class="sheet" id="sheetSet" hidden>
@@ -310,7 +365,9 @@ var S = {
   mode:'auto', view:'sight',
   locked:null, target:null,
   night:false, dark:false, bright:100, snd:true, bezel:0, hit:false, zoom:true,
-  practice:{on:false,target:null,result:null,pass:0,total:0},
+  practice:{on:false,target:null,result:null,pass:0,total:0,deadline:0},
+  timer:{mode:'down',total:300,state:'idle',left:300000,elapsed:0,t0:0},
+  tSound:true, pLimit:0,
   started:false
 };
 try{
@@ -318,13 +375,16 @@ try{
   if(saved.unit)S.unit=saved.unit;
   if(typeof saved.decl==='number')S.decl=saved.decl;
   if(typeof saved.smooth==='number')S.smooth=saved.smooth;
+  if(typeof saved.tTotal==='number'&&saved.tTotal>0&&saved.tTotal<=10800)S.timer.total=Math.round(saved.tTotal);
+  if(typeof saved.tSound==='boolean')S.tSound=saved.tSound;
+  if([0,15,30,60].indexOf(saved.pLimit)>=0)S.pLimit=saved.pLimit;
   if(saved.night===true)S.night=true;
   if(saved.dark===true){S.night=true;S.dark=true;}
   if(typeof saved.bright==='number')S.bright=Math.min(100,Math.max(15,saved.bright));
   if(saved.snd===false)S.snd=false;
   if(typeof saved.zoom==='boolean')S.zoom=saved.zoom;   // zoomed on first run; the button remembers the user's choice
 }catch(e){}
-function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth,night:S.night,dark:S.dark,bright:S.bright,snd:S.snd,zoom:S.zoom}))}catch(e){}}
+function persist(){try{localStorage.setItem('lensatic',JSON.stringify({unit:S.unit,decl:S.decl,smooth:S.smooth,night:S.night,dark:S.dark,bright:S.bright,snd:S.snd,zoom:S.zoom,tTotal:S.timer.total,tSound:S.tSound,pLimit:S.pLimit}))}catch(e){}}
 
 /* ---------- heading maths (alpha measured from north) ---------- */
 // where the BACK of the phone points (phone upright)
@@ -835,12 +895,14 @@ function setGuide(cls,html){
 }
 function updateGuide(h){
   var P=S.practice;
+  if(T.state==='done'&&A.on){setGuide('miss','หมดเวลา<small>แตะปุ่ม "หมดเวลา" ด้านล่างเพื่อปิดเสียง</small>');return;}
   if(P.on){
     if(P.result){
       var r=P.result;
-      setGuide(r.ok?'hit':'miss',(r.ok?'ผ่าน ':'คลาด ')+fmtAmount(r.err)+'<small>เล็งได้ '+fmtPrimary(r.measured)+' · เป้าหมาย '+fmtPrimary(P.target)+' · ผ่าน '+P.pass+'/'+P.total+'</small>');
+      setGuide(r.ok?'hit':'miss',(r.timeout?'หมดเวลา':((r.ok?'ผ่าน ':'คลาด ')+fmtAmount(r.err)))+'<small>เล็งได้ '+fmtPrimary(r.measured)+' · เป้าหมาย '+fmtPrimary(P.target)+' · ผ่าน '+P.pass+'/'+P.total+'</small>');
     }else{
-      setGuide('','เป้าหมาย '+fmtPrimary(P.target)+'<small>หันให้เส้นแดงตรงทิศนี้ แล้วกด "ยืนยันทิศ" · ผ่าน '+P.pass+'/'+P.total+'</small>');
+      var rem=P.deadline?Math.max(0,Math.ceil((P.deadline-Date.now())/1000)):null;
+      setGuide('','เป้าหมาย '+fmtPrimary(P.target)+'<small>หันให้เส้นแดงตรงทิศนี้ แล้วกด "ยืนยันทิศ" · ผ่าน '+P.pass+'/'+P.total+(rem!=null?' · เหลือ '+rem+' วิ':'')+'</small>');
     }
     return;
   }
@@ -896,7 +958,7 @@ $('btnLock').addEventListener('click',function(){
   updateButtons();
 });
 function randomTarget(){return S.unit==='mil'?toDeg(Math.floor(Math.random()*640)*10):Math.floor(Math.random()*360);}
-function nextPractice(){var P=S.practice;P.target=randomTarget();P.result=null;lastGuide='';updateButtons();}
+function nextPractice(){var P=S.practice;P.target=randomTarget();P.result=null;P.deadline=S.pLimit>0?Date.now()+S.pLimit*1000:0;lastGuide='';updateButtons();}
 $('btnPractice').addEventListener('click',function(){
   var P=S.practice;
   if(P.on){P.on=false;P.result=null;}
@@ -993,7 +1055,7 @@ dial.addEventListener('pointercancel',endDrag);
 
 /* ---------- night mode ---------- */
 // look: 0 day, 1 night (red), 2 pitch dark (only the lume glows)
-function sheetsOpen(){return !$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden;}
+function sheetsOpen(){return !$('start').hidden||!$('sheetSet').hidden||!$('sheetTarget').hidden||!$('sheetTimer').hidden;}
 function updateDim(){
   var o='0';
   if(S.night)o=(S.dark&&!sheetsOpen())?'1':String(1-S.bright/100);   // sheets stay readable (red) so settings can be changed
@@ -1018,7 +1080,128 @@ $('sndOn').addEventListener('click',function(){S.snd=true;syncSnd();persist();cl
 $('sndOff').addEventListener('click',function(){S.snd=false;syncSnd();persist();});
 $('brightInput').value=S.bright;$('brightVal').textContent=S.bright;syncSnd();
 
-applyNight();updateBezelBar();applyView();updateButtons();
+applyNight();updateBezelBar();/* ---------- timer ---------- */
+var T=S.timer,A={on:false,until:0,next:0};
+function beepBurst(){
+  buzz([200,100,200,100,400]);
+  unlockAudio();if(!AC)return;
+  try{
+    var t0=AC.currentTime;
+    [0,.28,.56].forEach(function(dt){
+      var o=AC.createOscillator(),g=AC.createGain();
+      o.type='square';o.frequency.value=880;
+      g.gain.setValueAtTime(.0001,t0+dt);
+      g.gain.exponentialRampToValueAtTime(.3,t0+dt+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t0+dt+.2);
+      o.connect(g);g.connect(AC.destination);o.start(t0+dt);o.stop(t0+dt+.22);
+    });
+  }catch(e){}
+}
+function clock(sec){sec=Math.max(0,sec);return pad(Math.floor(sec/60),2)+':'+pad(sec%60,2)}
+function timerNow(){
+  var n=Date.now();
+  if(T.mode==='down')return T.state==='run'?T.left-(n-T.t0):T.left;
+  return T.state==='run'?T.elapsed+(n-T.t0):T.elapsed;
+}
+function timerSeconds(){var ms=timerNow();return T.mode==='down'?Math.ceil(ms/1000):Math.floor(ms/1000);}
+function ackAlarm(){A.on=false}
+function timerReset(){ackAlarm();T.state='idle';T.left=T.total*1000;T.elapsed=0;}
+function timerStart(){
+  unlockAudio();ackAlarm();
+  if(T.state==='done')timerReset();
+  if(T.state==='idle'){
+    if(T.mode==='down'){if(T.total<=0)return false;T.left=T.total*1000;}
+    else{T.elapsed=0;}
+  }
+  T.t0=Date.now();T.state='run';wake();return true;
+}
+function timerPause(){
+  var v=timerNow();
+  if(T.mode==='down')T.left=v;else T.elapsed=v;
+  T.state='pause';
+}
+function syncTimerSheet(){
+  var idle=T.state==='idle',i;
+  $('tmDown').setAttribute('aria-pressed',T.mode==='down');
+  $('tmUp').setAttribute('aria-pressed',T.mode==='up');
+  $('tmDown').disabled=!idle;$('tmUp').disabled=!idle;
+  $('tSetWrap').hidden=T.mode==='up';
+  $('tMin').disabled=!idle;$('tSec').disabled=!idle;
+  var chips=$('tPresets').children;
+  for(i=0;i<chips.length;i++){
+    chips[i].disabled=!idle;
+    chips[i].setAttribute('aria-pressed',+chips[i].getAttribute('data-s')===T.total);
+  }
+}
+var rc={tb:'',tc:'',big:'',st:'',k:''};
+function renderTimer(){
+  var txt='เวลา',cls='btn',P=S.practice,secs=timerSeconds();
+  if(T.state==='done'){txt='หมดเวลา';cls='btn alarm';}
+  else if(T.state==='run'||T.state==='pause'){txt=clock(secs);cls='btn run';}
+  else if(P.on&&!P.result&&P.deadline){txt=Math.max(0,Math.ceil((P.deadline-Date.now())/1000))+' วิ';cls='btn run';}
+  if(rc.tb!==txt){rc.tb=txt;$('btnTimer').textContent=txt;}
+  if(rc.tc!==cls){rc.tc=cls;$('btnTimer').className=cls;}
+  var big=T.state==='idle'?(T.mode==='down'?clock(T.total):'00:00'):clock(secs);
+  if(rc.big!==big){rc.big=big;$('tBig').textContent=big;}
+  var st=T.state==='run'?'หยุดชั่วคราว':(T.state==='pause'?'ต่อ':(T.state==='done'?'เริ่มใหม่':'เริ่ม'));
+  if(rc.st!==st){rc.st=st;$('tStart').textContent=st;}
+  var key=T.state+T.mode+T.total;
+  if(rc.k!==key){rc.k=key;syncTimerSheet();}
+}
+function timerTick(){
+  var now=Date.now(),P=S.practice;
+  if(T.state==='run'&&T.mode==='down'&&timerNow()<=0){
+    T.state='done';T.left=0;A.on=true;A.until=now+30000;A.next=0;
+  }
+  if(A.on){
+    if(now>A.until)A.on=false;
+    else if(now>=A.next){if(S.tSound)beepBurst();A.next=now+2000;}
+  }
+  if(P.on&&!P.result&&P.deadline&&now>=P.deadline){
+    var hh=liveHeading();
+    if(hh!=null){
+      P.total++;P.result={ok:false,timeout:true,err:sdiff(hh,P.target),measured:hh};P.deadline=0;
+      buzz([30,60,30]);lastGuide='';updateButtons();
+    }
+  }
+  renderTimer();
+}
+function setTotalFromInputs(){
+  var m=Math.max(0,Math.min(180,parseInt($('tMin').value,10)||0));
+  var sc=Math.max(0,Math.min(59,parseInt($('tSec').value,10)||0));
+  T.total=m*60+sc;persist();renderTimer();
+}
+$('tMin').addEventListener('input',setTotalFromInputs);
+$('tSec').addEventListener('input',setTotalFromInputs);
+$('tPresets').addEventListener('click',function(e){
+  var b=e.target.closest?e.target.closest('button'):null;
+  if(!b||b.disabled)return;
+  var v=+b.getAttribute('data-s');
+  T.total=v;$('tMin').value=Math.floor(v/60);$('tSec').value=v%60;persist();renderTimer();
+});
+$('tmDown').addEventListener('click',function(){if(T.state==='idle'){T.mode='down';renderTimer();}});
+$('tmUp').addEventListener('click',function(){if(T.state==='idle'){T.mode='up';renderTimer();}});
+$('tStart').addEventListener('click',function(){
+  if(T.state==='run'){timerPause();}
+  else if(timerStart()){hide('sheetTimer');}
+  renderTimer();
+});
+$('tReset').addEventListener('click',function(){timerReset();renderTimer();});
+$('tSound').addEventListener('change',function(){S.tSound=this.checked;persist();});
+$('tLimit').addEventListener('change',function(){
+  S.pLimit=+this.value;persist();
+  var P=S.practice;if(P.on&&!P.result)P.deadline=S.pLimit>0?Date.now()+S.pLimit*1000:0;
+});
+$('btnTimer').addEventListener('click',function(){ackAlarm();renderTimer();show('sheetTimer');});
+$('tClose').addEventListener('click',function(){hide('sheetTimer');});
+$('tMin').value=Math.floor(T.total/60);$('tSec').value=T.total%60;
+$('tSound').checked=S.tSound;$('tLimit').value=String(S.pLimit);
+T.left=T.total*1000;
+setInterval(timerTick,200);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&S.started)wake();});
+renderTimer();
+
+applyView();updateButtons();
 requestAnimationFrame(frame);
 })();
 </script>
